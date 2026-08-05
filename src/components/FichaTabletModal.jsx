@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function FichaTabletModal({ client, currentStaff, onClose }) {
+export default function FichaTabletModal({ client, asignacion, currentStaff, onClose }) {
   const [catalogo, setCatalogo] = useState({});
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState({ categoria_servicio: '', subtipo_servicio: '', historial_observaciones: '' });
@@ -21,10 +21,21 @@ export default function FichaTabletModal({ client, currentStaff, onClose }) {
         grouped[s.categoria].push(s.subtipo);
       });
       setCatalogo(grouped);
-      const firstCat = Object.keys(grouped)[0];
-      if (firstCat) setForm((f) => ({ ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }));
+
+      // Si la secretaria ya cargó categoría/servicio al asignar, se
+      // usa eso como punto de partida (editable); si no, el primero del catálogo.
+      if (asignacion?.categoria_servicio) {
+        setForm({
+          categoria_servicio: asignacion.categoria_servicio,
+          subtipo_servicio: asignacion.subtipo_servicio || '',
+          historial_observaciones: asignacion.historial_observaciones || '',
+        });
+      } else {
+        const firstCat = Object.keys(grouped)[0];
+        if (firstCat) setForm((f) => ({ ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }));
+      }
     }
-  }, []);
+  }, [asignacion]);
 
   const fetchRecords = useCallback(async () => {
     const { data } = await supabase
@@ -84,6 +95,11 @@ export default function FichaTabletModal({ client, currentStaff, onClose }) {
 
         {Object.keys(catalogo).length > 0 && (
           <form onSubmit={handleSave} className="space-y-5 bg-pink-50/50 p-5 rounded-2xl border border-pink-100 mb-8">
+            {asignacion?.categoria_servicio && (
+              <p className="text-xs bg-pink-100 text-pink-700 font-semibold px-3 py-2 rounded-lg inline-block">
+                📋 Cargado por recepción — revisa y confirma
+              </p>
+            )}
             <div>
               <label className="text-sm font-semibold block mb-2">CATEGORÍA</label>
               <select
