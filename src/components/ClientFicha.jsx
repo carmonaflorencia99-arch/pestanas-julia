@@ -7,14 +7,30 @@ export default function ClientFicha({ client, currentStaff }) {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  const puedeCargar = currentStaff.rol === 'profesional' || currentStaff.rol === 'admin';
+  const puedeCargar = currentStaff.rol === 'profesional' || currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria';
 
   const emptyForm = {
     categoria_servicio: '',
     subtipo_servicio: '',
     historial_observaciones: '',
+    staff_id: currentStaff.rol === 'profesional' ? currentStaff.id : '',
   };
   const [form, setForm] = useState(emptyForm);
+  const [profesionales, setProfesionales] = useState([]);
+
+  const necesitaElegirProfesional = currentStaff.rol !== 'profesional';
+
+  useEffect(() => {
+    if (necesitaElegirProfesional) {
+      supabase
+        .from('staff')
+        .select('id, nombre')
+        .eq('rol', 'profesional')
+        .eq('activo', true)
+        .order('nombre')
+        .then(({ data }) => data && setProfesionales(data));
+    }
+  }, [necesitaElegirProfesional]);
 
   const fetchCatalogo = useCallback(async () => {
     const { data } = await supabase
@@ -93,7 +109,7 @@ export default function ClientFicha({ client, currentStaff }) {
     const { error } = await supabase.from('service_records').insert([
       {
         client_id: client.id,
-        staff_id: currentStaff.id,
+        staff_id: form.staff_id || currentStaff.id,
         categoria_servicio: form.categoria_servicio,
         subtipo_servicio: form.subtipo_servicio,
         historial_observaciones: form.historial_observaciones,
@@ -125,7 +141,7 @@ export default function ClientFicha({ client, currentStaff }) {
   };
 
   const puedeEditarRegistro = (rec) =>
-    currentStaff.rol === 'admin' || rec.staff_id === currentStaff.id;
+    currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria' || rec.staff_id === currentStaff.id;
 
   return (
     <div>
@@ -159,6 +175,24 @@ export default function ClientFicha({ client, currentStaff }) {
               </button>
             )}
           </div>
+
+          {necesitaElegirProfesional && !editingId && (
+            <div>
+              <label className="text-xs font-semibold block mb-1">PROFESIONAL QUE ATIENDE</label>
+              <select
+                value={form.staff_id}
+                onChange={(e) => setForm({ ...form, staff_id: e.target.value })}
+                className="w-full p-2 border rounded-lg text-sm bg-white"
+              >
+                <option value="">Seleccionar...</option>
+                {profesionales.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -207,7 +241,8 @@ export default function ClientFicha({ client, currentStaff }) {
 
           <button
             type="submit"
-            className="w-full bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-pink-700 transition"
+            disabled={necesitaElegirProfesional && !editingId && !form.staff_id}
+            className="w-full bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-pink-700 transition disabled:opacity-40"
           >
             {editingId ? 'Guardar cambios' : 'Guardar ficha'}
           </button>
