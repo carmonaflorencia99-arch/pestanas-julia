@@ -6,9 +6,37 @@ const hoy = () => new Date().toISOString().slice(0, 10);
 export default function AgendaDia({ currentStaff }) {
   const [profesionales, setProfesionales] = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
+  const [catalogo, setCatalogo] = useState({});
   const [clientSearch, setClientSearch] = useState('');
   const [clientResults, setClientResults] = useState([]);
-  const [form, setForm] = useState({ client: null, staff_id: '', hora: '' });
+  const [form, setForm] = useState({
+    client: null,
+    staff_id: '',
+    hora: '',
+    categoria_servicio: '',
+    subtipo_servicio: '',
+    historial_observaciones: '',
+  });
+
+  const fetchCatalogo = useCallback(async () => {
+    const { data } = await supabase
+      .from('servicios_catalogo')
+      .select('categoria, subtipo')
+      .eq('activo', true)
+      .order('orden');
+    if (data) {
+      const grouped = {};
+      data.forEach((s) => {
+        if (!grouped[s.categoria]) grouped[s.categoria] = [];
+        grouped[s.categoria].push(s.subtipo);
+      });
+      setCatalogo(grouped);
+      const firstCat = Object.keys(grouped)[0];
+      if (firstCat) {
+        setForm((f) => ({ ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }));
+      }
+    }
+  }, []);
 
   const fetchProfesionales = useCallback(async () => {
     const { data } = await supabase
@@ -32,7 +60,8 @@ export default function AgendaDia({ currentStaff }) {
   useEffect(() => {
     fetchProfesionales();
     fetchAsignaciones();
-  }, [fetchProfesionales, fetchAsignaciones]);
+    fetchCatalogo();
+  }, [fetchProfesionales, fetchAsignaciones, fetchCatalogo]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -59,12 +88,23 @@ export default function AgendaDia({ currentStaff }) {
         client_id: form.client.id,
         staff_id: form.staff_id,
         hora: form.hora,
+        categoria_servicio: form.categoria_servicio,
+        subtipo_servicio: form.subtipo_servicio,
+        historial_observaciones: form.historial_observaciones,
         creado_por: currentStaff.id,
       },
     ]);
 
     if (!error) {
-      setForm({ client: null, staff_id: '', hora: '' });
+      const firstCat = Object.keys(catalogo)[0];
+      setForm({
+        client: null,
+        staff_id: '',
+        hora: '',
+        categoria_servicio: firstCat || '',
+        subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
+        historial_observaciones: '',
+      });
       setClientSearch('');
       fetchAsignaciones();
     } else {
@@ -147,6 +187,54 @@ export default function AgendaDia({ currentStaff }) {
           </div>
         </div>
 
+        {Object.keys(catalogo).length > 0 && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold block mb-1">CATEGORÍA SERVICIO</label>
+                <select
+                  value={form.categoria_servicio}
+                  onChange={(e) => {
+                    const cat = e.target.value;
+                    setForm({ ...form, categoria_servicio: cat, subtipo_servicio: catalogo[cat][0] });
+                  }}
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                >
+                  {Object.keys(catalogo).map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1">SERVICIO ESPECÍFICO</label>
+                <select
+                  value={form.subtipo_servicio}
+                  onChange={(e) => setForm({ ...form, subtipo_servicio: e.target.value })}
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                >
+                  {(catalogo[form.categoria_servicio] || []).map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1">MAPEO / OBSERVACIONES (opcional)</label>
+              <textarea
+                rows="2"
+                placeholder="Lo que dicte la profesional o quede acordado con la clienta..."
+                value={form.historial_observaciones}
+                onChange={(e) => setForm({ ...form, historial_observaciones: e.target.value })}
+                className="w-full p-2 border rounded-lg text-sm bg-white"
+              />
+            </div>
+          </>
+        )}
+
         <button
           type="submit"
           disabled={!form.client || !form.staff_id}
@@ -165,6 +253,11 @@ export default function AgendaDia({ currentStaff }) {
               <span className="font-semibold">{a.hora || '—'}</span>{' '}
               <span>{a.clients?.nombre}</span>{' '}
               <span className="text-gray-400">→ {a.staff?.nombre}</span>
+              {a.categoria_servicio && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {a.categoria_servicio}: {a.subtipo_servicio}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-1 rounded-lg font-medium ${estadoColor[a.estado]}`}>
@@ -183,3 +276,4 @@ export default function AgendaDia({ currentStaff }) {
     </div>
   );
 }
+
