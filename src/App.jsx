@@ -5,13 +5,15 @@ import ClientList from './components/ClientList';
 import ClientFicha from './components/ClientFicha';
 import NewClientModal from './components/NewClientModal';
 import AdminPanel from './components/AdminPanel';
+import AgendaDia from './components/AgendaDia';
+import ColaProfesional from './components/ColaProfesional';
 import { exportRecordsToCsv } from './utils/exportCsv';
 
 export default function App() {
   const [currentStaff, setCurrentStaff] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [view, setView] = useState('fichas'); // 'fichas' | 'admin'
+  const [view, setView] = useState('fichas'); // 'fichas' | 'agenda' | 'admin'
   const [checkingSession, setCheckingSession] = useState(true);
 
   // Restaurar sesión si ya había un login previo (staff guardado localmente)
@@ -49,6 +51,21 @@ export default function App() {
 
   const canCreateClient = currentStaff.rol === 'secretaria' || currentStaff.rol === 'admin';
 
+  // Vista dedicada de tablet para profesionales: solo su cola de hoy,
+  // sin buscador general ni el resto de la navegación.
+  if (currentStaff.rol === 'profesional') {
+    return (
+      <div className="min-h-screen bg-pink-50 p-4 sm:p-8">
+        <div className="max-w-3xl mx-auto flex justify-end mb-2">
+          <button onClick={handleLogout} className="text-sm text-gray-400 active:text-gray-600">
+            Salir
+          </button>
+        </div>
+        <ColaProfesional currentStaff={currentStaff} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-pink-50 p-4 font-sans text-gray-800">
       <header className="max-w-4xl mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
@@ -59,14 +76,20 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setView('fichas')}
+            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'fichas' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+          >
+            Fichas
+          </button>
+          <button
+            onClick={() => setView('agenda')}
+            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'agenda' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+          >
+            Agenda de hoy
+          </button>
           {currentStaff.rol === 'admin' && (
             <>
-              <button
-                onClick={() => setView('fichas')}
-                className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'fichas' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-              >
-                Fichas
-              </button>
               <button
                 onClick={() => setView('admin')}
                 className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'admin' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
@@ -91,9 +114,11 @@ export default function App() {
       </header>
 
       <main className="max-w-4xl mx-auto">
-        {view === 'admin' && currentStaff.rol === 'admin' ? (
-          <AdminPanel />
-        ) : (
+        {view === 'admin' && currentStaff.rol === 'admin' && <AdminPanel />}
+
+        {view === 'agenda' && <AgendaDia currentStaff={currentStaff} />}
+
+        {view === 'fichas' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
               <ClientList
