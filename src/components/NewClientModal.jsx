@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function NewClientModal({ currentStaff, onClose, onCreated }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
   const [alertasSalud, setAlertasSalud] = useState('');
+  const [profesionalHabitual, setProfesionalHabitual] = useState('');
+  const [profesionales, setProfesionales] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('staff')
+      .select('id, nombre')
+      .eq('rol', 'profesional')
+      .eq('activo', true)
+      .order('nombre')
+      .then(({ data }) => data && setProfesionales(data));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,7 +26,13 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
 
     const { data, error } = await supabase
       .from('clients')
-      .insert([{ nombre, telefono, alertas_salud: alertasSalud, creado_por: currentStaff.id }])
+      .insert([{
+        nombre,
+        telefono,
+        alertas_salud: alertasSalud,
+        profesional_habitual_id: profesionalHabitual || null,
+        creado_por: currentStaff.id,
+      }])
       .select()
       .single();
 
@@ -59,6 +77,21 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
               onChange={(e) => setAlertasSalud(e.target.value)}
               className="w-full p-2 border rounded-lg text-sm"
             />
+          </div>
+          <div>
+            <label className="text-xs font-semibold block mb-1">PROFESIONAL HABITUAL (opcional)</label>
+            <select
+              value={profesionalHabitual}
+              onChange={(e) => setProfesionalHabitual(e.target.value)}
+              className="w-full p-2 border rounded-lg text-sm"
+            >
+              <option value="">Sin preferencia</option>
+              {profesionales.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-2 pt-2">
             <button
