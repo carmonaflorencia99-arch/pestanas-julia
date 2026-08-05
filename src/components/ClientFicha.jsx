@@ -47,6 +47,20 @@ export default function ClientFicha({ client, currentStaff }) {
     setLoading(false);
   }, [client.id]);
 
+  const [profesionalHabitual, setProfesionalHabitual] = useState(null);
+  useEffect(() => {
+    if (client.profesional_habitual_id) {
+      supabase
+        .from('staff')
+        .select('nombre')
+        .eq('id', client.profesional_habitual_id)
+        .single()
+        .then(({ data }) => data && setProfesionalHabitual(data.nombre));
+    } else {
+      setProfesionalHabitual(null);
+    }
+  }, [client.profesional_habitual_id]);
+
   useEffect(() => {
     fetchCatalogo();
   }, [fetchCatalogo]);
@@ -121,6 +135,9 @@ export default function ClientFicha({ client, currentStaff }) {
         <p className="text-xs text-red-500 font-medium mt-1">
           ⚠️ Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
         </p>
+        {profesionalHabitual && (
+          <p className="text-xs text-pink-500 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
+        )}
       </div>
 
       {puedeCargar && Object.keys(catalogo).length > 0 && (
