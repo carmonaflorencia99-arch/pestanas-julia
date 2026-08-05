@@ -119,6 +119,7 @@ export default function ColaProfesional({ currentStaff }) {
       {activa && (
         <FichaTabletModal
           client={activa.clients}
+          asignacion={activa}
           currentStaff={currentStaff}
           onClose={() => {
             setActiva(null);
