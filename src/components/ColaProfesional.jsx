@@ -60,6 +60,11 @@ export default function ColaProfesional({ currentStaff }) {
               <div>
                 <p className="text-3xl font-bold text-gray-800">{a.clients?.nombre}</p>
                 {a.hora && <p className="text-lg text-pink-600 font-semibold mt-1">{a.hora}</p>}
+                {a.servicios?.length > 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {a.servicios.map((s) => s.subtipo_servicio).join(' + ')}
+                  </p>
+                )}
               </div>
               {a.clients?.alertas_salud && (
                 <span className="text-xs bg-red-50 text-red-500 font-semibold px-3 py-2 rounded-lg">
