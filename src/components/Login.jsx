@@ -49,9 +49,14 @@ export default function Login({ onLoggedIn }) {
   };
 
   return (
-    <div className="min-h-screen bg-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-paper flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm p-8 w-full max-w-sm">
-        <h1 className="text-xl font-bold text-pink-600 text-center mb-1">Las Pestañas de Julia 🌸</h1>
+        <h1 className="font-display italic text-2xl font-semibold text-brand-700 text-center leading-tight">
+          Las Pestañas de Julia
+        </h1>
+        <svg className="brand-swash mx-auto mb-2" viewBox="0 0 46 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 6C10 1 16 1 23 4C30 7 36 7 44 2" stroke="#EF9FB6" strokeWidth="2" strokeLinecap="round" />
+        </svg>
         <p className="text-xs text-gray-400 text-center mb-6">Fichas técnicas · Acceso del equipo</p>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -65,7 +70,7 @@ export default function Login({ onLoggedIn }) {
                   onClick={() => setSelectedStaff(s)}
                   className={`p-2 rounded-lg text-sm border transition ${
                     selectedStaff?.id === s.id
-                      ? 'bg-pink-600 text-white border-pink-600'
+                      ? 'bg-brand-600 text-white border-brand-600'
                       : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                   }`}
                 >
@@ -84,7 +89,7 @@ export default function Login({ onLoggedIn }) {
               placeholder="••••••"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              className="w-full p-3 border rounded-lg text-center text-lg tracking-widest focus:outline-pink-500"
+              className="w-full p-3 border rounded-lg text-center text-lg tracking-widest focus:outline-brand-500"
             />
           </div>
 
@@ -93,7 +98,7 @@ export default function Login({ onLoggedIn }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-pink-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-pink-700 transition disabled:opacity-50"
+            className="w-full bg-brand-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-700 transition disabled:opacity-50"
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
