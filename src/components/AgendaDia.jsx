@@ -13,10 +13,13 @@ export default function AgendaDia({ currentStaff }) {
     client: null,
     staff_id: '',
     hora: '',
+  });
+  const [servicioActual, setServicioActual] = useState({
     categoria_servicio: '',
     subtipo_servicio: '',
     historial_observaciones: '',
   });
+  const [servicios, setServicios] = useState([]); // lista de servicios agregados para esta asignación
 
   const fetchCatalogo = useCallback(async () => {
     const { data } = await supabase
@@ -33,10 +36,20 @@ export default function AgendaDia({ currentStaff }) {
       setCatalogo(grouped);
       const firstCat = Object.keys(grouped)[0];
       if (firstCat) {
-        setForm((f) => ({ ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }));
+        setServicioActual((f) => ({ ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }));
       }
     }
   }, []);
+
+  const agregarServicio = () => {
+    if (!servicioActual.categoria_servicio || !servicioActual.subtipo_servicio) return;
+    setServicios((s) => [...s, servicioActual]);
+    setServicioActual((f) => ({ ...f, historial_observaciones: '' }));
+  };
+
+  const quitarServicio = (index) => {
+    setServicios((s) => s.filter((_, i) => i !== index));
+  };
 
   const fetchProfesionales = useCallback(async () => {
     const { data } = await supabase
@@ -47,6 +60,24 @@ export default function AgendaDia({ currentStaff }) {
       .order('nombre');
     if (data) setProfesionales(data);
   }, []);
+
+  const [extras, setExtras] = useState([]);
+  const fetchExtras = useCallback(async () => {
+    const inicioHoy = `${hoy()}T00:00:00`;
+    const { data } = await supabase
+      .from('service_records')
+      .select('*, clients(nombre), staff:staff_id(nombre)')
+      .eq('es_extra', true)
+      .eq('revisado', false)
+      .gte('fecha', inicioHoy)
+      .order('fecha', { ascending: false });
+    if (data) setExtras(data);
+  }, []);
+
+  const marcarExtraRevisado = async (id) => {
+    await supabase.from('service_records').update({ revisado: true }).eq('id', id);
+    fetchExtras();
+  };
 
   const fetchAsignaciones = useCallback(async () => {
     const { data } = await supabase
@@ -61,7 +92,8 @@ export default function AgendaDia({ currentStaff }) {
     fetchProfesionales();
     fetchAsignaciones();
     fetchCatalogo();
-  }, [fetchProfesionales, fetchAsignaciones, fetchCatalogo]);
+    fetchExtras();
+  }, [fetchProfesionales, fetchAsignaciones, fetchCatalogo, fetchExtras]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -81,26 +113,23 @@ export default function AgendaDia({ currentStaff }) {
 
   const handleAsignar = async (e) => {
     e.preventDefault();
-    if (!form.client || !form.staff_id) return;
+    if (!form.client || !form.staff_id || servicios.length === 0) return;
 
     const { error } = await supabase.from('asignaciones_dia').insert([
       {
         client_id: form.client.id,
         staff_id: form.staff_id,
         hora: form.hora,
-        categoria_servicio: form.categoria_servicio,
-        subtipo_servicio: form.subtipo_servicio,
-        historial_observaciones: form.historial_observaciones,
+        servicios,
         creado_por: currentStaff.id,
       },
     ]);
 
     if (!error) {
       const firstCat = Object.keys(catalogo)[0];
-      setForm({
-        client: null,
-        staff_id: '',
-        hora: '',
+      setForm({ client: null, staff_id: '', hora: '' });
+      setServicios([]);
+      setServicioActual({
         categoria_servicio: firstCat || '',
         subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
         historial_observaciones: '',
@@ -129,6 +158,36 @@ export default function AgendaDia({ currentStaff }) {
       <p className="text-xs text-gray-400 mb-4">
         Asigna qué profesional atiende a cada clienta hoy. Cada profesional verá esto en su tablet.
       </p>
+
+      {extras.length > 0 && (
+        <div className="mb-6 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+          <h3 className="text-sm font-bold text-amber-700 mb-3">
+            ⚠️ Extras sin revisar ({extras.length})
+          </h3>
+          <div className="space-y-2">
+            {extras.map((ex) => (
+              <div key={ex.id} className="flex justify-between items-center bg-white p-3 rounded-lg text-sm">
+                <div>
+                  <span className="font-semibold">{ex.clients?.nombre}</span>{' '}
+                  <span className="text-gray-500">
+                    — {ex.categoria_servicio}: {ex.subtipo_servicio}
+                  </span>
+                  <p className="text-xs text-gray-400">
+                    Atendió: {ex.staff?.nombre}
+                    {ex.historial_observaciones && ` · ${ex.historial_observaciones}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => marcarExtraRevisado(ex.id)}
+                  className="text-xs bg-amber-500 text-white font-semibold px-3 py-1.5 rounded-lg active:bg-amber-600 whitespace-nowrap ml-2"
+                >
+                  Ya lo cargué ✓
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleAsignar} className="bg-pink-50/50 p-4 rounded-xl border border-pink-100 mb-6 space-y-3">
         <div className="relative">
@@ -188,15 +247,40 @@ export default function AgendaDia({ currentStaff }) {
         </div>
 
         {Object.keys(catalogo).length > 0 && (
-          <>
+          <div className="border-t pt-3 space-y-3">
+            <label className="text-xs font-semibold block">SERVICIOS DE ESTA VISITA</label>
+
+            {servicios.length > 0 && (
+              <div className="space-y-1.5">
+                {servicios.map((s, i) => (
+                  <div key={i} className="flex justify-between items-center bg-white p-2 rounded-lg border text-sm">
+                    <div>
+                      <span className="font-semibold">{s.categoria_servicio}</span>
+                      <span className="text-gray-400"> — {s.subtipo_servicio}</span>
+                      {s.historial_observaciones && (
+                        <p className="text-xs text-gray-400">{s.historial_observaciones}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => quitarServicio(i)}
+                      className="text-xs text-red-400 hover:text-red-600 ml-2"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold block mb-1">CATEGORÍA SERVICIO</label>
                 <select
-                  value={form.categoria_servicio}
+                  value={servicioActual.categoria_servicio}
                   onChange={(e) => {
                     const cat = e.target.value;
-                    setForm({ ...form, categoria_servicio: cat, subtipo_servicio: catalogo[cat][0] });
+                    setServicioActual({ ...servicioActual, categoria_servicio: cat, subtipo_servicio: catalogo[cat][0] });
                   }}
                   className="w-full p-2 border rounded-lg text-sm bg-white"
                 >
@@ -210,11 +294,11 @@ export default function AgendaDia({ currentStaff }) {
               <div>
                 <label className="text-xs font-semibold block mb-1">SERVICIO ESPECÍFICO</label>
                 <select
-                  value={form.subtipo_servicio}
-                  onChange={(e) => setForm({ ...form, subtipo_servicio: e.target.value })}
+                  value={servicioActual.subtipo_servicio}
+                  onChange={(e) => setServicioActual({ ...servicioActual, subtipo_servicio: e.target.value })}
                   className="w-full p-2 border rounded-lg text-sm bg-white"
                 >
-                  {(catalogo[form.categoria_servicio] || []).map((sub) => (
+                  {(catalogo[servicioActual.categoria_servicio] || []).map((sub) => (
                     <option key={sub} value={sub}>
                       {sub}
                     </option>
@@ -227,17 +311,24 @@ export default function AgendaDia({ currentStaff }) {
               <textarea
                 rows="2"
                 placeholder="Lo que dicte la profesional o quede acordado con la clienta..."
-                value={form.historial_observaciones}
-                onChange={(e) => setForm({ ...form, historial_observaciones: e.target.value })}
+                value={servicioActual.historial_observaciones}
+                onChange={(e) => setServicioActual({ ...servicioActual, historial_observaciones: e.target.value })}
                 className="w-full p-2 border rounded-lg text-sm bg-white"
               />
             </div>
-          </>
+            <button
+              type="button"
+              onClick={agregarServicio}
+              className="w-full border-2 border-dashed border-pink-300 text-pink-600 text-sm font-semibold py-2 rounded-lg hover:bg-pink-50"
+            >
+              + Agregar servicio a la lista
+            </button>
+          </div>
         )}
 
         <button
           type="submit"
-          disabled={!form.client || !form.staff_id}
+          disabled={!form.client || !form.staff_id || servicios.length === 0}
           className="w-full bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
         >
           Asignar
@@ -253,10 +344,16 @@ export default function AgendaDia({ currentStaff }) {
               <span className="font-semibold">{a.hora || '—'}</span>{' '}
               <span>{a.clients?.nombre}</span>{' '}
               <span className="text-gray-400">→ {a.staff?.nombre}</span>
-              {a.categoria_servicio && (
+              {a.servicios?.length > 0 ? (
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {a.categoria_servicio}: {a.subtipo_servicio}
+                  {a.servicios.map((s) => s.subtipo_servicio).join(' + ')}
                 </p>
+              ) : (
+                a.categoria_servicio && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {a.categoria_servicio}: {a.subtipo_servicio}
+                  </p>
+                )
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -276,4 +373,3 @@ export default function AgendaDia({ currentStaff }) {
     </div>
   );
 }
-
