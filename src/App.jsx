@@ -135,7 +135,11 @@ export default function App() {
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2">
               {selectedClient ? (
-                <ClientFicha client={selectedClient} currentStaff={currentStaff} />
+                <ClientFicha
+                  client={selectedClient}
+                  currentStaff={currentStaff}
+                  onClientUpdated={(updated) => setSelectedClient(updated)}
+                />
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 py-20">
                   <p>Selecciona una clienta a la izquierda para ver su ficha.</p>
