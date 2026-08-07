@@ -146,20 +146,20 @@ export default function ClientFicha({ client, currentStaff }) {
   return (
     <div>
       <div className="border-b pb-4 mb-4">
-        <h2 className="text-lg font-bold text-gray-800 uppercase">{client.nombre}</h2>
+        <h2 className="text-lg font-bold text-ink uppercase">{client.nombre}</h2>
         <p className="text-xs text-gray-500">{client.telefono || 'Sin teléfono'}</p>
         <p className="text-xs text-red-500 font-medium mt-1">
           ⚠️ Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
         </p>
         {profesionalHabitual && (
-          <p className="text-xs text-pink-500 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
+          <p className="text-xs text-blush-600 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
         )}
       </div>
 
       {puedeCargar && Object.keys(catalogo).length > 0 && (
-        <form onSubmit={handleSave} className="space-y-4 bg-pink-50/50 p-4 rounded-xl border border-pink-100 mb-6">
+        <form onSubmit={handleSave} className="space-y-4 bg-brand-50/60 p-4 rounded-xl border border-brand-100 mb-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-pink-700">
+            <h3 className="text-sm font-bold text-brand-700">
               {editingId ? 'Editando registro' : 'Nueva carga en talonario'}
             </h3>
             {editingId && (
@@ -242,7 +242,7 @@ export default function ClientFicha({ client, currentStaff }) {
           <button
             type="submit"
             disabled={necesitaElegirProfesional && !editingId && !form.staff_id}
-            className="w-full bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-pink-700 transition disabled:opacity-40"
+            className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-brand-700 transition disabled:opacity-40"
           >
             {editingId ? 'Guardar cambios' : 'Guardar ficha'}
           </button>
@@ -259,9 +259,9 @@ export default function ClientFicha({ client, currentStaff }) {
           <div key={rec.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
             <div className="flex justify-between font-semibold text-xs text-gray-500 mb-1">
               <span>{new Date(rec.fecha).toLocaleDateString('es-ES')}</span>
-              <span className="text-pink-600">Atendió: {rec.staff?.nombre || '—'}</span>
+              <span className="text-brand-600">Atendió: {rec.staff?.nombre || '—'}</span>
             </div>
-            <p className="font-bold text-gray-800">
+            <p className="font-bold text-ink">
               {rec.categoria_servicio}: <span className="font-normal">{rec.subtipo_servicio}</span>
             </p>
             {rec.historial_observaciones && (
@@ -273,7 +273,7 @@ export default function ClientFicha({ client, currentStaff }) {
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={() => handleEdit(rec)}
-                  className="text-xs text-pink-600 font-medium hover:underline"
+                  className="text-xs text-brand-600 font-medium hover:underline"
                 >
                   Editar
                 </button>
