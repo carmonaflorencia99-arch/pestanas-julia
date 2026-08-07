@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import EditClientModal from './EditClientModal';
 
-export default function ClientFicha({ client, currentStaff }) {
+export default function ClientFicha({ client, currentStaff, onClientUpdated }) {
   const [records, setRecords] = useState([]);
   const [catalogo, setCatalogo] = useState({});
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [showEditClient, setShowEditClient] = useState(false);
 
+  const puedeEditarClienta = currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria';
   const puedeCargar = currentStaff.rol === 'profesional' || currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria';
 
   const emptyForm = {
@@ -145,16 +148,36 @@ export default function ClientFicha({ client, currentStaff }) {
 
   return (
     <div>
-      <div className="border-b pb-4 mb-4">
-        <h2 className="text-lg font-bold text-ink uppercase">{client.nombre}</h2>
-        <p className="text-xs text-gray-500">{client.telefono || 'Sin teléfono'}</p>
-        <p className="text-xs text-red-500 font-medium mt-1">
-          ⚠️ Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
-        </p>
-        {profesionalHabitual && (
-          <p className="text-xs text-blush-600 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
+      <div className="border-b pb-4 mb-4 flex justify-between items-start">
+        <div>
+          <h2 className="text-lg font-bold text-ink uppercase">{client.nombre}</h2>
+          <p className="text-xs text-gray-500">{client.telefono || 'Sin teléfono'}</p>
+          <p className="text-xs text-red-500 font-medium mt-1">
+            ⚠️ Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
+          </p>
+          {profesionalHabitual && (
+            <p className="text-xs text-blush-600 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
+          )}
+        </div>
+        {puedeEditarClienta && (
+          <button
+            onClick={() => setShowEditClient(true)}
+            className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-200 whitespace-nowrap"
+          >
+            ✏️ Editar datos
+          </button>
         )}
       </div>
+
+      {showEditClient && (
+        <EditClientModal
+          client={client}
+          onClose={() => setShowEditClient(false)}
+          onUpdated={(updated) => {
+            onClientUpdated?.(updated);
+          }}
+        />
+      )}
 
       {puedeCargar && Object.keys(catalogo).length > 0 && (
         <form onSubmit={handleSave} className="space-y-4 bg-brand-50/60 p-4 rounded-xl border border-brand-100 mb-6">
