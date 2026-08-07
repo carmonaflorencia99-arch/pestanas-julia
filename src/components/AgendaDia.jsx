@@ -51,6 +51,35 @@ export default function AgendaDia({ currentStaff }) {
     setServicios((s) => s.filter((_, i) => i !== index));
   };
 
+  const [cargandoMapeo, setCargandoMapeo] = useState(false);
+  const [mapeoPrellenado, setMapeoPrellenado] = useState(false);
+
+  const seleccionarClienta = async (c) => {
+    setForm({ ...form, client: c });
+    setClientResults([]);
+    setCargandoMapeo(true);
+    setMapeoPrellenado(false);
+
+    const { data } = await supabase
+      .from('service_records')
+      .select('categoria_servicio, subtipo_servicio, historial_observaciones')
+      .eq('client_id', c.id)
+      .eq('es_extra', false)
+      .order('fecha', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setServicioActual({
+        categoria_servicio: data.categoria_servicio,
+        subtipo_servicio: data.subtipo_servicio,
+        historial_observaciones: data.historial_observaciones || '',
+      });
+      setMapeoPrellenado(true);
+    }
+    setCargandoMapeo(false);
+  };
+
   const fetchProfesionales = useCallback(async () => {
     const { data } = await supabase
       .from('staff')
@@ -154,7 +183,7 @@ export default function AgendaDia({ currentStaff }) {
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm">
-      <h2 className="font-bold text-gray-800 mb-1">Agenda de hoy</h2>
+      <h2 className="font-bold text-ink mb-1">Agenda de hoy</h2>
       <p className="text-xs text-gray-400 mb-4">
         Asigna qué profesional atiende a cada clienta hoy. Cada profesional verá esto en su tablet.
       </p>
@@ -162,7 +191,7 @@ export default function AgendaDia({ currentStaff }) {
       {extras.length > 0 && (
         <div className="mb-6 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-amber-700 mb-3">
-            ⚠️ Extras sin revisar ({extras.length})
+            ⚠️ Servicios extra pendientes de cargar en Flowww ({extras.length})
           </h3>
           <div className="space-y-2">
             {extras.map((ex) => (
@@ -189,7 +218,7 @@ export default function AgendaDia({ currentStaff }) {
         </div>
       )}
 
-      <form onSubmit={handleAsignar} className="bg-pink-50/50 p-4 rounded-xl border border-pink-100 mb-6 space-y-3">
+      <form onSubmit={handleAsignar} className="bg-brand-50/60 p-4 rounded-xl border border-brand-100 mb-6 space-y-3">
         <div className="relative">
           <label className="text-xs font-semibold block mb-1">CLIENTA</label>
           <input
@@ -206,17 +235,15 @@ export default function AgendaDia({ currentStaff }) {
               {clientResults.map((c) => (
                 <div
                   key={c.id}
-                  onClick={() => {
-                    setForm({ ...form, client: c });
-                    setClientResults([]);
-                  }}
-                  className="p-2 text-sm hover:bg-pink-50 cursor-pointer"
+                  onClick={() => seleccionarClienta(c)}
+                  className="p-2 text-sm hover:bg-brand-50 cursor-pointer"
                 >
                   {c.nombre}
                 </div>
               ))}
             </div>
           )}
+          {cargandoMapeo && <p className="text-xs text-gray-400 mt-1">Buscando su último mapeo...</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -249,6 +276,12 @@ export default function AgendaDia({ currentStaff }) {
         {Object.keys(catalogo).length > 0 && (
           <div className="border-t pt-3 space-y-3">
             <label className="text-xs font-semibold block">SERVICIOS DE ESTA VISITA</label>
+
+            {mapeoPrellenado && (
+              <p className="text-xs bg-blush-50 text-blush-600 font-medium px-2 py-1.5 rounded-lg inline-block">
+                💡 Prellenado con su último mapeo registrado — podés ajustarlo antes de agregar
+              </p>
+            )}
 
             {servicios.length > 0 && (
               <div className="space-y-1.5">
@@ -319,7 +352,7 @@ export default function AgendaDia({ currentStaff }) {
             <button
               type="button"
               onClick={agregarServicio}
-              className="w-full border-2 border-dashed border-pink-300 text-pink-600 text-sm font-semibold py-2 rounded-lg hover:bg-pink-50"
+              className="w-full border-2 border-dashed border-brand-300 text-brand-600 text-sm font-semibold py-2 rounded-lg hover:bg-brand-50"
             >
               + Agregar servicio a la lista
             </button>
@@ -329,7 +362,7 @@ export default function AgendaDia({ currentStaff }) {
         <button
           type="submit"
           disabled={!form.client || !form.staff_id || servicios.length === 0}
-          className="w-full bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
+          className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
         >
           Asignar
         </button>
