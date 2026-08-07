@@ -42,7 +42,7 @@ export default function App() {
   };
 
   if (checkingSession) {
-    return <div className="min-h-screen bg-pink-50" />;
+    return <div className="min-h-screen bg-paper" />;
   }
 
   if (!currentStaff) {
@@ -55,7 +55,7 @@ export default function App() {
   // sin buscador general ni el resto de la navegación.
   if (currentStaff.rol === 'profesional') {
     return (
-      <div className="min-h-screen bg-pink-50 p-4 sm:p-8">
+      <div className="min-h-screen bg-paper p-4 sm:p-8">
         <div className="max-w-3xl mx-auto flex justify-end mb-2">
           <button onClick={handleLogout} className="text-sm text-gray-400 active:text-gray-600">
             Salir
@@ -67,10 +67,15 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-pink-50 p-4 font-sans text-gray-800">
+    <div className="min-h-screen bg-paper p-4 font-sans text-ink">
       <header className="max-w-4xl mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
         <div>
-          <h1 className="text-lg font-bold text-pink-600">Las Pestañas de Julia 🌸</h1>
+          <h1 className="font-display italic text-xl font-semibold text-brand-700 leading-tight">
+            Las Pestañas de Julia
+            <svg className="brand-swash" viewBox="0 0 46 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 6C10 1 16 1 23 4C30 7 36 7 44 2" stroke="#EF9FB6" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </h1>
           <p className="text-xs text-gray-400">
             {currentStaff.nombre} · <span className="capitalize">{currentStaff.rol}</span>
           </p>
@@ -78,13 +83,13 @@ export default function App() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setView('fichas')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'fichas' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'fichas' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
           >
             Fichas
           </button>
           <button
             onClick={() => setView('agenda')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'agenda' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'agenda' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
           >
             Agenda de hoy
           </button>
@@ -92,7 +97,7 @@ export default function App() {
             <>
               <button
                 onClick={() => setView('admin')}
-                className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'admin' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+                className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'admin' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
               >
                 Administración
               </button>
