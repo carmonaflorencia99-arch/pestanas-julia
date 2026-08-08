@@ -10,6 +10,7 @@ export default function Login({ onLoggedIn }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
 
   useEffect(() => {
     fetchStaff();
@@ -24,12 +25,24 @@ export default function Login({ onLoggedIn }) {
     if (!error && data) setStaffList(data);
   };
 
+  const mostrarError = (mensaje) => {
+    setError(mensaje);
+    setShake(true);
+    setTimeout(() => setShake(false), 400);
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
+
     if (!selectedStaff) {
-      setError('Selecciona tu nombre primero.');
+      mostrarError('Primero toca tu nombre.');
       return;
     }
+    if (!pin) {
+      mostrarError('Escribe tu PIN.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -41,7 +54,8 @@ export default function Login({ onLoggedIn }) {
     setLoading(false);
 
     if (authError) {
-      setError('PIN incorrecto. Inténtalo de nuevo.');
+      setPin('');
+      mostrarError('PIN incorrecto. Inténtalo de nuevo.');
       return;
     }
 
@@ -50,7 +64,7 @@ export default function Login({ onLoggedIn }) {
 
   return (
     <div className="min-h-screen bg-paper flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sm p-8 w-full max-w-sm">
+      <div className={`bg-white rounded-2xl shadow-sm p-8 w-full max-w-sm ${shake ? 'animate-shake' : ''}`}>
         <h1 className="font-display italic text-2xl font-semibold text-brand-700 text-center leading-tight">
           Las Pestañas de Julia
         </h1>
@@ -88,8 +102,13 @@ export default function Login({ onLoggedIn }) {
               maxLength={6}
               placeholder="••••••"
               value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              className="w-full p-3 border rounded-lg text-center text-lg tracking-widest focus:outline-brand-500"
+              onChange={(e) => {
+                setPin(e.target.value);
+                if (error) setError('');
+              }}
+              className={`w-full p-3 border rounded-lg text-center text-lg tracking-widest focus:outline-brand-500 ${
+                error ? 'border-red-300' : ''
+              }`}
             />
           </div>
 
