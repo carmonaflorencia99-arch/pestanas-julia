@@ -152,8 +152,8 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated }) {
         <div>
           <h2 className="text-lg font-bold text-ink uppercase">{client.nombre}</h2>
           <p className="text-xs text-gray-500">{client.telefono || 'Sin teléfono'}</p>
-          <p className="text-xs text-red-500 font-medium mt-1">
-            ⚠️ Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
+          <p className={`text-xs font-medium mt-1 ${client.alertas_salud ? 'text-red-500' : 'text-gray-400'}`}>
+            {client.alertas_salud ? '⚠️' : '✓'} Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
           </p>
           {profesionalHabitual && (
             <p className="text-xs text-blush-600 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
