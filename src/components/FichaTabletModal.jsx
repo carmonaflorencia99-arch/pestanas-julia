@@ -148,13 +148,13 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
           {guardadoIndex !== null && <span className="text-green-600 text-sm font-semibold">✓ Guardado</span>}
         </div>
 
-        <h2 className="text-3xl font-bold text-gray-800">{client.nombre}</h2>
-        <p className="text-lg text-red-500 font-medium mt-1 mb-6">
-          ⚠️ {client.alertas_salud || 'Sin alertas de salud registradas'}
+        <h2 className="text-3xl font-bold text-ink">{client.nombre}</h2>
+        <p className={`text-lg font-medium mt-1 mb-6 ${client.alertas_salud ? 'text-red-500' : 'text-gray-400'}`}>
+          {client.alertas_salud ? '⚠️' : '✓'} {client.alertas_salud || 'Sin alertas de salud registradas'}
         </p>
 
         {cargadoPorRecepcion && (
-          <p className="text-xs bg-pink-100 text-pink-700 font-semibold px-3 py-2 rounded-lg inline-block mb-4">
+          <p className="text-xs bg-brand-100 text-brand-700 font-semibold px-3 py-2 rounded-lg inline-block mb-4">
             📋 Cargado por recepción — revisa y confirma cada servicio
           </p>
         )}
@@ -162,7 +162,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         {items.length > 1 && pendientes > 0 && (
           <button
             onClick={guardarTodosPendientes}
-            className="w-full bg-pink-600 text-white text-base font-semibold py-3 rounded-xl active:bg-pink-700 mb-4"
+            className="w-full bg-brand-600 text-white text-base font-semibold py-3 rounded-xl active:bg-brand-700 mb-4"
           >
             Confirmar todos los servicios ({pendientes} pendiente{pendientes > 1 ? 's' : ''})
           </button>
@@ -174,7 +174,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
               <div
                 key={index}
                 className={`space-y-4 p-5 rounded-2xl border-2 ${
-                  item.guardado ? 'bg-green-50 border-green-200' : 'bg-pink-50/50 border-pink-100'
+                  item.guardado ? 'bg-green-50 border-green-200' : 'bg-brand-50/60 border-brand-100'
                 }`}
               >
                 {items.length > 1 && (
@@ -234,7 +234,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                 <button
                   onClick={() => guardarItem(index)}
                   disabled={item.guardado || savingIndex === index}
-                  className="w-full bg-pink-600 text-white text-lg font-semibold py-4 rounded-xl active:bg-pink-700 disabled:opacity-50"
+                  className="w-full bg-brand-600 text-white text-lg font-semibold py-4 rounded-xl active:bg-brand-700 disabled:opacity-50"
                 >
                   {item.guardado ? '✓ Confirmado' : savingIndex === index ? 'Guardando...' : 'Confirmar este servicio'}
                 </button>
@@ -262,7 +262,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                 </button>
               </div>
               <p className="text-xs text-amber-600">
-                Esto queda marcado para que recepción lo vea y lo cargue en Flowww.
+                Queda como pendiente para que recepción lo cargue en Flowww.
               </p>
 
               <div>
@@ -326,7 +326,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
           {records.map((r) => (
             <div key={r.id} className="p-4 bg-gray-50 rounded-xl">
               <p className="text-xs text-gray-500 mb-1">{new Date(r.fecha).toLocaleDateString('es-ES')}</p>
-              <p className="font-semibold text-gray-800">
+              <p className="font-semibold text-ink">
                 {r.categoria_servicio}: <span className="font-normal">{r.subtipo_servicio}</span>
                 {r.es_extra && (
                   <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-lg font-semibold">
