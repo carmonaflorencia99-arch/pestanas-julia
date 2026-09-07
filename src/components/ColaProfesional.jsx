@@ -36,15 +36,34 @@ export default function ColaProfesional({ currentStaff }) {
     completado: 'border-green-300 opacity-60',
   };
 
-  const pendientes = asignaciones.filter((a) => a.estado !== 'completado');
-  const completadas = asignaciones.filter((a) => a.estado === 'completado');
+  const citas = asignaciones.filter((a) => a.tipo !== 'descanso');
+  const descansos = asignaciones.filter((a) => a.tipo === 'descanso');
+  const pendientes = citas.filter((a) => a.estado !== 'completado');
+  const completadas = citas.filter((a) => a.estado === 'completado');
 
   return (
     <div className="max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-1">Hola, {currentStaff.nombre} 👋</h2>
       <p className="text-gray-400 mb-8">Tu agenda de hoy</p>
 
-      {pendientes.length === 0 && completadas.length === 0 && (
+      {descansos.length > 0 && (
+        <div className="space-y-2 mb-6">
+          {descansos.map((d) => (
+            <div key={d.id} className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+              <span className="text-2xl">☕</span>
+              <div>
+                <p className="font-bold text-amber-700">
+                  Descanso {d.hora}
+                  {d.hora_fin && ` – ${d.hora_fin}`}
+                </p>
+                {d.historial_observaciones && <p className="text-sm text-amber-600">{d.historial_observaciones}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pendientes.length === 0 && completadas.length === 0 && descansos.length === 0 && (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">
           Todavía no tienes clientas asignadas hoy.
         </div>
