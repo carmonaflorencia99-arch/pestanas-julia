@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import NewClientModal from './NewClientModal';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
@@ -9,6 +10,7 @@ export default function AgendaDia({ currentStaff }) {
   const [catalogo, setCatalogo] = useState({});
   const [clientSearch, setClientSearch] = useState('');
   const [clientResults, setClientResults] = useState([]);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [form, setForm] = useState({
     client: null,
     staff_id: '',
@@ -20,6 +22,11 @@ export default function AgendaDia({ currentStaff }) {
     historial_observaciones: '',
   });
   const [servicios, setServicios] = useState([]); // lista de servicios agregados para esta asignación
+
+  // ----- Descanso -----
+  const [mostrarDescanso, setMostrarDescanso] = useState(false);
+  const [descansoForm, setDescansoForm] = useState({ staff_id: '', hora: '', hora_fin: '', nota: '' });
+  const [savingDescanso, setSavingDescanso] = useState(false);
 
   const fetchCatalogo = useCallback(async () => {
     const { data } = await supabase
@@ -36,7 +43,9 @@ export default function AgendaDia({ currentStaff }) {
       setCatalogo(grouped);
       const firstCat = Object.keys(grouped)[0];
       if (firstCat) {
-        setServicioActual((f) => ({ ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }));
+        setServicioActual((f) =>
+          f.categoria_servicio ? f : { ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }
+        );
       }
     }
   }, []);
@@ -76,8 +85,30 @@ export default function AgendaDia({ currentStaff }) {
         historial_observaciones: data.historial_observaciones || '',
       });
       setMapeoPrellenado(true);
+    } else {
+      const firstCat = Object.keys(catalogo)[0];
+      setServicioActual({
+        categoria_servicio: firstCat || '',
+        subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
+        historial_observaciones: '',
+      });
     }
     setCargandoMapeo(false);
+  };
+
+  // Cuando se crea una clienta nueva desde acá mismo, queda seleccionada
+  // directo (no tiene historial todavía, así que no hay mapeo que buscar).
+  const handleClientaCreada = (nuevaClienta) => {
+    setForm((f) => ({ ...f, client: nuevaClienta }));
+    setClientSearch('');
+    setClientResults([]);
+    setMapeoPrellenado(false);
+    const firstCat = Object.keys(catalogo)[0];
+    setServicioActual({
+      categoria_servicio: firstCat || '',
+      subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
+      historial_observaciones: '',
+    });
   };
 
   const fetchProfesionales = useCallback(async () => {
@@ -150,6 +181,7 @@ export default function AgendaDia({ currentStaff }) {
         staff_id: form.staff_id,
         hora: form.hora,
         servicios,
+        tipo: 'cita',
         creado_por: currentStaff.id,
       },
     ]);
@@ -167,6 +199,34 @@ export default function AgendaDia({ currentStaff }) {
       fetchAsignaciones();
     } else {
       alert('No se pudo asignar. Intenta de nuevo.');
+    }
+  };
+
+  const handleAgregarDescanso = async (e) => {
+    e.preventDefault();
+    if (!descansoForm.staff_id || !descansoForm.hora) return;
+    setSavingDescanso(true);
+
+    const { error } = await supabase.from('asignaciones_dia').insert([
+      {
+        staff_id: descansoForm.staff_id,
+        hora: descansoForm.hora,
+        hora_fin: descansoForm.hora_fin,
+        historial_observaciones: descansoForm.nota,
+        tipo: 'descanso',
+        client_id: null,
+        servicios: [],
+        creado_por: currentStaff.id,
+      },
+    ]);
+
+    setSavingDescanso(false);
+    if (!error) {
+      setDescansoForm({ staff_id: '', hora: '', hora_fin: '', nota: '' });
+      setMostrarDescanso(false);
+      fetchAsignaciones();
+    } else {
+      alert('No se pudo agregar el descanso.');
     }
   };
 
@@ -218,9 +278,18 @@ export default function AgendaDia({ currentStaff }) {
         </div>
       )}
 
-      <form onSubmit={handleAsignar} className="bg-brand-50/60 p-4 rounded-xl border border-brand-100 mb-6 space-y-3">
+      <form onSubmit={handleAsignar} className="bg-brand-50/60 p-4 rounded-xl border border-brand-100 mb-3 space-y-3">
         <div className="relative">
-          <label className="text-xs font-semibold block mb-1">CLIENTA</label>
+          <div className="flex justify-between items-center mb-1">
+            <label className="text-xs font-semibold">CLIENTA</label>
+            <button
+              type="button"
+              onClick={() => setShowNewClientModal(true)}
+              className="text-xs text-brand-600 font-semibold hover:underline"
+            >
+              + Nueva clienta
+            </button>
+          </div>
           <input
             placeholder="Buscar clienta..."
             value={form.client ? form.client.nombre : clientSearch}
@@ -242,6 +311,11 @@ export default function AgendaDia({ currentStaff }) {
                 </div>
               ))}
             </div>
+          )}
+          {clientSearch && clientResults.length === 0 && !form.client && (
+            <p className="text-xs text-gray-400 mt-1">
+              No se encontró ninguna clienta. Tocá "+ Nueva clienta" para darla de alta.
+            </p>
           )}
           {cargandoMapeo && <p className="text-xs text-gray-400 mt-1">Buscando su último mapeo...</p>}
         </div>
@@ -368,41 +442,134 @@ export default function AgendaDia({ currentStaff }) {
         </button>
       </form>
 
+      {/* Descanso: separado de la asignación de clientas, para que no se confunda */}
+      <div className="mb-6">
+        {!mostrarDescanso ? (
+          <button
+            type="button"
+            onClick={() => setMostrarDescanso(true)}
+            className="w-full border-2 border-dashed border-amber-300 text-amber-700 text-sm font-semibold py-2 rounded-lg hover:bg-amber-50"
+          >
+            ☕ Agregar horario de descanso
+          </button>
+        ) : (
+          <form onSubmit={handleAgregarDescanso} className="bg-amber-50 p-4 rounded-xl border-2 border-amber-200 space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-amber-700">Horario de descanso</h3>
+              <button type="button" onClick={() => setMostrarDescanso(false)} className="text-xs text-gray-400">
+                Cancelar
+              </button>
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1">PROFESIONAL</label>
+              <select
+                value={descansoForm.staff_id}
+                onChange={(e) => setDescansoForm({ ...descansoForm, staff_id: e.target.value })}
+                className="w-full p-2 border rounded-lg text-sm bg-white"
+              >
+                <option value="">Seleccionar...</option>
+                {profesionales.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold block mb-1">DESDE</label>
+                <input
+                  placeholder="Ej: 14:00"
+                  value={descansoForm.hora}
+                  onChange={(e) => setDescansoForm({ ...descansoForm, hora: e.target.value })}
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1">HASTA (opcional)</label>
+                <input
+                  placeholder="Ej: 15:00"
+                  value={descansoForm.hora_fin}
+                  onChange={(e) => setDescansoForm({ ...descansoForm, hora_fin: e.target.value })}
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold block mb-1">NOTA (opcional)</label>
+              <input
+                placeholder="Almuerzo, trámite personal..."
+                value={descansoForm.nota}
+                onChange={(e) => setDescansoForm({ ...descansoForm, nota: e.target.value })}
+                className="w-full p-2 border rounded-lg text-sm bg-white"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingDescanso || !descansoForm.staff_id || !descansoForm.hora}
+              className="w-full bg-amber-500 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
+            >
+              {savingDescanso ? 'Guardando...' : 'Agregar descanso'}
+            </button>
+          </form>
+        )}
+      </div>
+
       <h3 className="text-sm font-semibold text-gray-700 mb-3">Cola de hoy</h3>
       <div className="space-y-2">
         {asignaciones.length === 0 && <p className="text-xs text-gray-400">Todavía no hay asignaciones para hoy.</p>}
-        {asignaciones.map((a) => (
-          <div key={a.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
-            <div>
-              <span className="font-semibold">{a.hora || '—'}</span>{' '}
-              <span>{a.clients?.nombre}</span>{' '}
-              <span className="text-gray-400">→ {a.staff?.nombre}</span>
-              {a.servicios?.length > 0 ? (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {a.servicios.map((s) => s.subtipo_servicio).join(' + ')}
-                </p>
-              ) : (
-                a.categoria_servicio && (
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {a.categoria_servicio}: {a.subtipo_servicio}
-                  </p>
-                )
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-1 rounded-lg font-medium ${estadoColor[a.estado]}`}>
-                {a.estado}
-              </span>
-              <button
-                onClick={() => handleEliminar(a.id)}
-                className="text-xs text-red-400 hover:text-red-600"
-              >
+        {asignaciones.map((a) =>
+          a.tipo === 'descanso' ? (
+            <div key={a.id} className="flex justify-between items-center p-3 bg-amber-50 rounded-lg text-sm border border-amber-100">
+              <div>
+                <span className="font-semibold">☕ Descanso</span>{' '}
+                <span className="text-gray-400">
+                  {a.hora}
+                  {a.hora_fin && ` – ${a.hora_fin}`}
+                </span>{' '}
+                <span className="text-gray-400">→ {a.staff?.nombre}</span>
+                {a.historial_observaciones && <p className="text-xs text-gray-400 mt-0.5">{a.historial_observaciones}</p>}
+              </div>
+              <button onClick={() => handleEliminar(a.id)} className="text-xs text-red-400 hover:text-red-600">
                 Quitar
               </button>
             </div>
-          </div>
-        ))}
+          ) : (
+            <div key={a.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
+              <div>
+                <span className="font-semibold">{a.hora || '—'}</span>{' '}
+                <span>{a.clients?.nombre}</span>{' '}
+                <span className="text-gray-400">→ {a.staff?.nombre}</span>
+                {a.servicios?.length > 0 ? (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {a.servicios.map((s) => s.subtipo_servicio).join(' + ')}
+                  </p>
+                ) : (
+                  a.categoria_servicio && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {a.categoria_servicio}: {a.subtipo_servicio}
+                    </p>
+                  )
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-lg font-medium ${estadoColor[a.estado]}`}>{a.estado}</span>
+                <button onClick={() => handleEliminar(a.id)} className="text-xs text-red-400 hover:text-red-600">
+                  Quitar
+                </button>
+              </div>
+            </div>
+          )
+        )}
       </div>
+
+      {showNewClientModal && (
+        <NewClientModal
+          currentStaff={currentStaff}
+          onClose={() => setShowNewClientModal(false)}
+          onCreated={handleClientaCreada}
+        />
+      )}
     </div>
   );
 }
