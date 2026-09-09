@@ -4,8 +4,9 @@ import { supabase } from '../supabaseClient';
 export default function NewClientModal({ currentStaff, onClose, onCreated }) {
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
-  const [alertasSalud, setAlertasSalud] = useState('');
+  const [alergias, setAlergias] = useState('');
   const [profesionalHabitual, setProfesionalHabitual] = useState('');
+  const [notasGenerales, setNotasGenerales] = useState('');
   const [profesionales, setProfesionales] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -24,13 +25,17 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
     if (!nombre.trim()) return;
     setSaving(true);
 
+    // Alta de clienta = solo datos base. No genera ningún registro de
+    // servicio ni historial con fecha; eso se crea aparte, el día que
+    // realmente venga a atenderse (desde Agenda de hoy o su ficha).
     const { data, error } = await supabase
       .from('clients')
       .insert([{
         nombre,
         telefono,
-        alertas_salud: alertasSalud,
+        alertas_salud: alergias,
         profesional_habitual_id: profesionalHabitual || null,
+        notas_generales: notasGenerales,
         creado_por: currentStaff.id,
       }])
       .select()
@@ -47,8 +52,9 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-sm">
-        <h3 className="font-bold text-gray-800 mb-4">Nueva clienta</h3>
+      <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <h3 className="font-bold text-ink mb-1">Nueva clienta</h3>
+        <p className="text-xs text-gray-400 mb-4">Solo sus datos básicos. El servicio se carga aparte cuando venga al salón.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="text-xs font-semibold block mb-1">NOMBRE</label>
@@ -69,17 +75,17 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">ALERTAS DE SALUD</label>
+            <label className="text-xs font-semibold block mb-1">ALERGIAS</label>
             <textarea
               rows="2"
               placeholder="Alergias, sensibilidades, contraindicaciones..."
-              value={alertasSalud}
-              onChange={(e) => setAlertasSalud(e.target.value)}
+              value={alergias}
+              onChange={(e) => setAlergias(e.target.value)}
               className="w-full p-2 border rounded-lg text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">PROFESIONAL HABITUAL (opcional)</label>
+            <label className="text-xs font-semibold block mb-1">PROFESIONAL DE PREFERENCIA (si tiene)</label>
             <select
               value={profesionalHabitual}
               onChange={(e) => setProfesionalHabitual(e.target.value)}
@@ -93,6 +99,16 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
               ))}
             </select>
           </div>
+          <div>
+            <label className="text-xs font-semibold block mb-1">HISTORIAL Y OBSERVACIONES</label>
+            <textarea
+              rows="3"
+              placeholder="Notas generales de la clienta (no es un registro de visita)..."
+              value={notasGenerales}
+              onChange={(e) => setNotasGenerales(e.target.value)}
+              className="w-full p-2 border rounded-lg text-sm"
+            />
+          </div>
           <div className="flex gap-2 pt-2">
             <button
               type="button"
@@ -104,7 +120,7 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+              className="flex-1 bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
             >
               {saving ? 'Guardando...' : 'Crear'}
             </button>
@@ -114,3 +130,4 @@ export default function NewClientModal({ currentStaff, onClose, onCreated }) {
     </div>
   );
 }
+
