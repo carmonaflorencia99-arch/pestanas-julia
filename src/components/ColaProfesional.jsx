@@ -84,6 +84,13 @@ export default function ColaProfesional({ currentStaff }) {
                     {a.servicios.map((s) => s.subtipo_servicio).join(' + ')}
                   </p>
                 )}
+                <span
+                  className={`inline-block mt-2 text-xs font-semibold px-2 py-1 rounded-lg ${
+                    a.llego ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {a.llego ? '✅ Ya llegó' : '⏳ Todavía no llega'}
+                </span>
               </div>
               {a.clients?.alertas_salud && (
                 <span className="text-xs bg-red-50 text-red-500 font-semibold px-3 py-2 rounded-lg">
