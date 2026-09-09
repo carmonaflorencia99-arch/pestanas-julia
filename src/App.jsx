@@ -139,6 +139,7 @@ export default function App() {
                   client={selectedClient}
                   currentStaff={currentStaff}
                   onClientUpdated={(updated) => setSelectedClient(updated)}
+                  onClientDeleted={() => setSelectedClient(null)}
                 />
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 py-20">
