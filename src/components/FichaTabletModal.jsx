@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
+const esServicioDePestanas = (categoria, subtipo) => {
+  const texto = `${categoria || ''} ${subtipo || ''}`.toLowerCase();
+  return texto.includes('pestañas') || texto.includes('lifting');
+};
+
 export default function FichaTabletModal({ client, asignacion, currentStaff, onClose }) {
   const [catalogo, setCatalogo] = useState({});
   const [records, setRecords] = useState([]);
@@ -12,7 +17,12 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
   const [guardadoIndex, setGuardadoIndex] = useState(null);
 
   const [mostrarExtra, setMostrarExtra] = useState(false);
-  const [extraForm, setExtraForm] = useState({ categoria_servicio: '', subtipo_servicio: '', historial_observaciones: '' });
+  const [extraForm, setExtraForm] = useState({
+    categoria_servicio: '',
+    subtipo_servicio: '',
+    diseno_pestanas: '',
+    historial_observaciones: '',
+  });
   const [savingExtra, setSavingExtra] = useState(false);
   const [extraGuardado, setExtraGuardado] = useState(false);
 
@@ -37,20 +47,29 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
       // Armar la lista de servicios a confirmar
       if (asignacion?.servicios?.length > 0) {
-        setItems(asignacion.servicios.map((s) => ({ ...s, guardado: false })));
+        setItems(asignacion.servicios.map((s) => ({ diseno_pestanas: '', ...s, guardado: false })));
       } else if (asignacion?.categoria_servicio) {
         // asignación vieja, un solo servicio suelto
         setItems([
           {
             categoria_servicio: asignacion.categoria_servicio,
             subtipo_servicio: asignacion.subtipo_servicio || '',
+            diseno_pestanas: '',
             historial_observaciones: asignacion.historial_observaciones || '',
             guardado: false,
           },
         ]);
       } else if (firstCat) {
         // sin asignación previa: un servicio en blanco para completar
-        setItems([{ categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0], historial_observaciones: '', guardado: false }]);
+        setItems([
+          {
+            categoria_servicio: firstCat,
+            subtipo_servicio: grouped[firstCat][0],
+            diseno_pestanas: '',
+            historial_observaciones: '',
+            guardado: false,
+          },
+        ]);
       }
     }
   }, [asignacion]);
@@ -77,12 +96,33 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
   const guardarItem = async (index) => {
     const item = items[index];
     setSavingIndex(index);
+
+    // Si es un servicio de pestañas con diseño cargado, comparamos contra
+    // el último diseño registrado de esta clienta para avisar si cambió.
+    let disenoCambioPendiente = false;
+    if (esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) && item.diseno_pestanas) {
+      const { data: previo } = await supabase
+        .from('service_records')
+        .select('diseno_pestanas')
+        .eq('client_id', client.id)
+        .not('diseno_pestanas', 'is', null)
+        .order('fecha', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (previo?.diseno_pestanas && previo.diseno_pestanas.trim() !== item.diseno_pestanas.trim()) {
+        disenoCambioPendiente = true;
+      }
+    }
+
     const { error } = await supabase.from('service_records').insert([
       {
         client_id: client.id,
         staff_id: currentStaff.id,
         categoria_servicio: item.categoria_servicio,
         subtipo_servicio: item.subtipo_servicio,
+        diseno_pestanas: item.diseno_pestanas || null,
+        diseno_cambio_pendiente: disenoCambioPendiente,
         historial_observaciones: item.historial_observaciones,
       },
     ]);
@@ -108,12 +148,31 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
   const handleSaveExtra = async (e) => {
     e.preventDefault();
     setSavingExtra(true);
+
+    let disenoCambioPendiente = false;
+    if (esServicioDePestanas(extraForm.categoria_servicio, extraForm.subtipo_servicio) && extraForm.diseno_pestanas) {
+      const { data: previo } = await supabase
+        .from('service_records')
+        .select('diseno_pestanas')
+        .eq('client_id', client.id)
+        .not('diseno_pestanas', 'is', null)
+        .order('fecha', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (previo?.diseno_pestanas && previo.diseno_pestanas.trim() !== extraForm.diseno_pestanas.trim()) {
+        disenoCambioPendiente = true;
+      }
+    }
+
     const { error } = await supabase.from('service_records').insert([
       {
         client_id: client.id,
         staff_id: currentStaff.id,
         categoria_servicio: extraForm.categoria_servicio,
         subtipo_servicio: extraForm.subtipo_servicio,
+        diseno_pestanas: extraForm.diseno_pestanas || null,
+        diseno_cambio_pendiente: disenoCambioPendiente,
         historial_observaciones: extraForm.historial_observaciones,
         es_extra: true,
       },
@@ -121,7 +180,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     setSavingExtra(false);
     if (!error) {
       setExtraGuardado(true);
-      setExtraForm((f) => ({ ...f, historial_observaciones: '' }));
+      setExtraForm((f) => ({ ...f, diseno_pestanas: '', historial_observaciones: '' }));
       fetchRecords();
       setTimeout(() => {
         setExtraGuardado(false);
@@ -149,9 +208,18 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         </div>
 
         <h2 className="text-3xl font-bold text-ink">{client.nombre}</h2>
-        <p className={`text-lg font-medium mt-1 mb-6 ${client.alertas_salud ? 'text-red-500' : 'text-gray-400'}`}>
+        <p className={`text-lg font-medium mt-1 mb-2 ${client.alertas_salud ? 'text-red-500' : 'text-gray-400'}`}>
           {client.alertas_salud ? '⚠️' : '✓'} {client.alertas_salud || 'Sin alertas de salud registradas'}
         </p>
+        {asignacion && (
+          <span
+            className={`inline-block text-xs font-semibold px-2 py-1 rounded-lg mb-4 ${
+              asignacion.pagado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+            }`}
+          >
+            {asignacion.pagado ? '💰 Pagó' : 'Pendiente de pago'}
+          </span>
+        )}
 
         {cargadoPorRecepcion && (
           <p className="text-xs bg-brand-100 text-brand-700 font-semibold px-3 py-2 rounded-lg inline-block mb-4">
@@ -219,6 +287,19 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                   </select>
                 </div>
 
+                {esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) && (
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">DISEÑO DE PESTAÑAS</label>
+                    <input
+                      placeholder="Ej: Doll eye, gato, natural, mixto..."
+                      value={item.diseno_pestanas || ''}
+                      onChange={(e) => actualizarItem(index, 'diseno_pestanas', e.target.value)}
+                      disabled={item.guardado}
+                      className="w-full p-4 border rounded-xl text-lg bg-white disabled:opacity-60"
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="text-sm font-semibold block mb-2">OBSERVACIONES</label>
                   <textarea
@@ -262,7 +343,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                 </button>
               </div>
               <p className="text-xs text-amber-600">
-                Queda como pendiente para que recepción lo cargue en Flowww.
+                Queda como pendiente para que recepción lo cargue en Booksy.
               </p>
 
               <div>
@@ -297,6 +378,18 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                   ))}
                 </select>
               </div>
+
+              {esServicioDePestanas(extraForm.categoria_servicio, extraForm.subtipo_servicio) && (
+                <div>
+                  <label className="text-sm font-semibold block mb-2">DISEÑO DE PESTAÑAS</label>
+                  <input
+                    placeholder="Ej: Doll eye, gato, natural, mixto..."
+                    value={extraForm.diseno_pestanas}
+                    onChange={(e) => setExtraForm({ ...extraForm, diseno_pestanas: e.target.value })}
+                    className="w-full p-4 border rounded-xl text-lg bg-white"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="text-sm font-semibold block mb-2">DETALLE (opcional)</label>
@@ -334,6 +427,11 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                   </span>
                 )}
               </p>
+              {r.diseno_pestanas && (
+                <p className="text-sm text-blush-600 mt-1">
+                  <strong>Diseño:</strong> {r.diseno_pestanas}
+                </p>
+              )}
               {r.historial_observaciones && <p className="text-sm text-gray-600 mt-1">{r.historial_observaciones}</p>}
             </div>
           ))}
@@ -342,3 +440,4 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     </div>
   );
 }
+
