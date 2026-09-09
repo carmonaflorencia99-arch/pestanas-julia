@@ -2,14 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import EditClientModal from './EditClientModal';
 
-export default function ClientFicha({ client, currentStaff, onClientUpdated }) {
+export default function ClientFicha({ client, currentStaff, onClientUpdated, onClientDeleted }) {
   const [records, setRecords] = useState([]);
   const [catalogo, setCatalogo] = useState({});
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [showEditClient, setShowEditClient] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const puedeEditarClienta = currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria';
+  const puedeBorrarClienta = currentStaff.rol === 'admin';
   const puedeCargar = currentStaff.rol === 'profesional' || currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria';
 
   const emptyForm = {
@@ -146,6 +150,18 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated }) {
   const puedeEditarRegistro = (rec) =>
     currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria' || rec.staff_id === currentStaff.id;
 
+  const handleDeleteClient = async () => {
+    if (confirmText.trim() !== client.nombre.trim()) return;
+    setDeleting(true);
+    const { error } = await supabase.from('clients').delete().eq('id', client.id);
+    setDeleting(false);
+    if (!error) {
+      onClientDeleted?.();
+    } else {
+      alert('No se pudo borrar la clienta.');
+    }
+  };
+
   return (
     <div>
       <div className="border-b pb-4 mb-4 flex justify-between items-start">
@@ -158,16 +174,68 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated }) {
           {profesionalHabitual && (
             <p className="text-xs text-blush-600 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
           )}
+          {client.notas_generales && (
+            <p className="mt-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 text-gray-600 max-w-md">
+              <strong>Historial y observaciones:</strong> {client.notas_generales}
+            </p>
+          )}
         </div>
-        {puedeEditarClienta && (
-          <button
-            onClick={() => setShowEditClient(true)}
-            className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-200 whitespace-nowrap"
-          >
-            ✏️ Editar datos
-          </button>
-        )}
+        <div className="flex gap-2 flex-shrink-0">
+          {puedeEditarClienta && (
+            <button
+              onClick={() => setShowEditClient(true)}
+              className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-200 whitespace-nowrap"
+            >
+              ✏️ Editar datos
+            </button>
+          )}
+          {puedeBorrarClienta && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 whitespace-nowrap"
+            >
+              🗑️ Borrar clienta
+            </button>
+          )}
+        </div>
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+            <h3 className="font-bold text-red-600 mb-2">Borrar a {client.nombre}</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Esto borra <strong>todo su historial de servicios y asignaciones para siempre</strong>. No se puede deshacer.
+              Para confirmar, escribí su nombre completo tal cual aparece: <strong>{client.nombre}</strong>
+            </p>
+            <input
+              autoFocus
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={client.nombre}
+              className="w-full p-2 border rounded-lg text-sm mb-4"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setConfirmText('');
+                }}
+                className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-sm font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteClient}
+                disabled={confirmText.trim() !== client.nombre.trim() || deleting}
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
+              >
+                {deleting ? 'Borrando...' : 'Borrar definitivamente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showEditClient && (
         <EditClientModal
