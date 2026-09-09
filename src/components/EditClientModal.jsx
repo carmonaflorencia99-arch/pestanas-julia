@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function EditClientModal({ client, onClose, onUpdated }) {
-  const [nombre, setNombre] = useState(client.nombre || '');
-  const [telefono, setTelefono] = useState(client.telefono || '');
-  const [alergias, setAlergias] = useState(client.alertas_salud || '');
-  const [profesionalHabitual, setProfesionalHabitual] = useState(client.profesional_habitual_id || '');
-  const [notasGenerales, setNotasGenerales] = useState(client.notas_generales || '');
+export default function NewClientModal({ currentStaff, onClose, onCreated }) {
+  const [nombre, setNombre] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [alergias, setAlergias] = useState('');
+  const [profesionalHabitual, setProfesionalHabitual] = useState('');
+  const [notasGenerales, setNotasGenerales] = useState('');
   const [profesionales, setProfesionales] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -25,35 +25,36 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
     if (!nombre.trim()) return;
     setSaving(true);
 
+    // Alta de clienta = solo datos base. No genera ningún registro de
+    // servicio ni historial con fecha; eso se crea aparte, el día que
+    // realmente venga a atenderse (desde Agenda de hoy o su ficha).
     const { data, error } = await supabase
       .from('clients')
-      .update({
+      .insert([{
         nombre,
         telefono,
         alertas_salud: alergias,
         profesional_habitual_id: profesionalHabitual || null,
         notas_generales: notasGenerales,
-      })
-      .eq('id', client.id)
+        creado_por: currentStaff.id,
+      }])
       .select()
       .single();
 
     setSaving(false);
     if (!error && data) {
-      onUpdated(data);
+      onCreated(data);
       onClose();
     } else {
-      alert('No se pudo actualizar la clienta.');
+      alert('No se pudo crear la clienta.');
     }
   };
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
-        <h3 className="font-bold text-ink mb-4">Editar datos de la clienta</h3>
-        <p className="text-xs text-gray-400 mb-4">
-          Esto actualiza su ficha (no crea un nuevo registro en el historial de servicios).
-        </p>
+        <h3 className="font-bold text-ink mb-1">Nueva clienta</h3>
+        <p className="text-xs text-gray-400 mb-4">Solo sus datos básicos. El servicio se carga aparte cuando venga al salón.</p>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="text-xs font-semibold block mb-1">NOMBRE</label>
@@ -76,7 +77,7 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
           <div>
             <label className="text-xs font-semibold block mb-1">ALERGIAS</label>
             <textarea
-              rows="3"
+              rows="2"
               placeholder="Alergias, sensibilidades, contraindicaciones..."
               value={alergias}
               onChange={(e) => setAlergias(e.target.value)}
@@ -84,7 +85,7 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">PROFESIONAL DE PREFERENCIA</label>
+            <label className="text-xs font-semibold block mb-1">PROFESIONAL DE PREFERENCIA (si tiene)</label>
             <select
               value={profesionalHabitual}
               onChange={(e) => setProfesionalHabitual(e.target.value)}
@@ -102,7 +103,7 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
             <label className="text-xs font-semibold block mb-1">HISTORIAL Y OBSERVACIONES</label>
             <textarea
               rows="3"
-              placeholder="Notas generales de la clienta..."
+              placeholder="Notas generales de la clienta (no es un registro de visita)..."
               value={notasGenerales}
               onChange={(e) => setNotasGenerales(e.target.value)}
               className="w-full p-2 border rounded-lg text-sm"
@@ -121,7 +122,7 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
               disabled={saving}
               className="flex-1 bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
             >
-              {saving ? 'Guardando...' : 'Guardar cambios'}
+              {saving ? 'Guardando...' : 'Crear'}
             </button>
           </div>
         </form>
