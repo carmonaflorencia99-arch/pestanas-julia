@@ -21,6 +21,11 @@ export default function AdminPanel() {
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editingStaffNombre, setEditingStaffNombre] = useState('');
 
+  // Edición de un servicio del catálogo
+  const [editingServicioId, setEditingServicioId] = useState(null);
+  const [editingServicioCategoria, setEditingServicioCategoria] = useState('');
+  const [editingServicioSubtipo, setEditingServicioSubtipo] = useState('');
+
   // Diseños cambiados pendientes de cargar en Booksy
   const [disenosCambiados, setDisenosCambiados] = useState([]);
 
@@ -92,6 +97,26 @@ export default function AdminPanel() {
   const toggleServicioActivo = async (id, activo) => {
     await supabase.from('servicios_catalogo').update({ activo: !activo }).eq('id', id);
     fetchCatalogo();
+  };
+
+  const iniciarEdicionServicio = (s) => {
+    setEditingServicioId(s.id);
+    setEditingServicioCategoria(s.categoria);
+    setEditingServicioSubtipo(s.subtipo);
+  };
+
+  const guardarServicio = async (id) => {
+    if (!editingServicioCategoria.trim() || !editingServicioSubtipo.trim()) return;
+    const { error } = await supabase
+      .from('servicios_catalogo')
+      .update({ categoria: editingServicioCategoria.trim(), subtipo: editingServicioSubtipo.trim() })
+      .eq('id', id);
+    if (!error) {
+      setEditingServicioId(null);
+      fetchCatalogo();
+    } else {
+      alert('No se pudo guardar (¿ya existe esa combinación de categoría y subtipo?).');
+    }
   };
 
   const marcarDisenoActualizado = async (id) => {
@@ -260,13 +285,49 @@ export default function AdminPanel() {
           <div className="space-y-2">
             {catalogo.map((s) => (
               <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
-                <div>
-                  <span className="font-semibold">{s.categoria}</span>
-                  <span className="text-gray-400"> — {s.subtipo}</span>
-                </div>
+                {editingServicioId === s.id ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      autoFocus
+                      value={editingServicioCategoria}
+                      onChange={(e) => setEditingServicioCategoria(e.target.value)}
+                      placeholder="Categoría"
+                      className="p-1.5 border rounded-lg text-sm flex-1"
+                    />
+                    <input
+                      value={editingServicioSubtipo}
+                      onChange={(e) => setEditingServicioSubtipo(e.target.value)}
+                      placeholder="Subtipo"
+                      className="p-1.5 border rounded-lg text-sm flex-1"
+                    />
+                    <button
+                      onClick={() => guardarServicio(s.id)}
+                      className="text-xs bg-brand-600 text-white px-2 py-1.5 rounded-lg font-medium whitespace-nowrap"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => setEditingServicioId(null)}
+                      className="text-xs text-gray-400 px-1"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{s.categoria}</span>
+                    <span className="text-gray-400">— {s.subtipo}</span>
+                    <button
+                      onClick={() => iniciarEdicionServicio(s)}
+                      className="text-xs text-brand-600 hover:underline"
+                    >
+                      ✏️ Editar
+                    </button>
+                  </div>
+                )}
                 <button
                   onClick={() => toggleServicioActivo(s.id, s.activo)}
-                  className={`text-xs px-2 py-1 rounded-lg font-medium ${s.activo ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}
+                  className={`text-xs px-2 py-1 rounded-lg font-medium whitespace-nowrap ml-2 ${s.activo ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}
                 >
                   {s.activo ? 'Activo' : 'Oculto'}
                 </button>
@@ -278,4 +339,3 @@ export default function AdminPanel() {
     </div>
   );
 }
-
