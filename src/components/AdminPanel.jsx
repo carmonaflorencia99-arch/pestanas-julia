@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 // NOTA: crear un usuario nuevo de Supabase Auth desde el navegador con
@@ -17,20 +17,37 @@ export default function AdminPanel() {
   const [newStaff, setNewStaff] = useState({ nombre: '', email_auth: '', auth_user_id: '', rol: 'profesional' });
   const [newServicio, setNewServicio] = useState({ categoria: '', subtipo: '' });
 
+  // Edición de nombre de personal
+  const [editingStaffId, setEditingStaffId] = useState(null);
+  const [editingStaffNombre, setEditingStaffNombre] = useState('');
+
+  // Diseños cambiados pendientes de cargar en Booksy
+  const [disenosCambiados, setDisenosCambiados] = useState([]);
+
+  const fetchStaff = useCallback(async () => {
+    const { data } = await supabase.from('staff').select('*').order('nombre');
+    if (data) setStaffList(data);
+  }, []);
+
+  const fetchCatalogo = useCallback(async () => {
+    const { data } = await supabase.from('servicios_catalogo').select('*').order('categoria').order('orden');
+    if (data) setCatalogo(data);
+  }, []);
+
+  const fetchDisenosCambiados = useCallback(async () => {
+    const { data } = await supabase
+      .from('service_records')
+      .select('*, clients(nombre), staff:staff_id(nombre)')
+      .eq('diseno_cambio_pendiente', true)
+      .order('fecha', { ascending: false });
+    if (data) setDisenosCambiados(data);
+  }, []);
+
   useEffect(() => {
     fetchStaff();
     fetchCatalogo();
-  }, []);
-
-  const fetchStaff = async () => {
-    const { data } = await supabase.from('staff').select('*').order('nombre');
-    if (data) setStaffList(data);
-  };
-
-  const fetchCatalogo = async () => {
-    const { data } = await supabase.from('servicios_catalogo').select('*').order('categoria').order('orden');
-    if (data) setCatalogo(data);
-  };
+    fetchDisenosCambiados();
+  }, [fetchStaff, fetchCatalogo, fetchDisenosCambiados]);
 
   const handleAddStaff = async (e) => {
     e.preventDefault();
@@ -45,6 +62,19 @@ export default function AdminPanel() {
 
   const toggleStaffActivo = async (id, activo) => {
     await supabase.from('staff').update({ activo: !activo }).eq('id', id);
+    fetchStaff();
+  };
+
+  const iniciarEdicionNombre = (s) => {
+    setEditingStaffId(s.id);
+    setEditingStaffNombre(s.nombre);
+  };
+
+  const guardarNombreStaff = async (id) => {
+    if (!editingStaffNombre.trim()) return;
+    await supabase.from('staff').update({ nombre: editingStaffNombre.trim() }).eq('id', id);
+    setEditingStaffId(null);
+    setEditingStaffNombre('');
     fetchStaff();
   };
 
@@ -64,18 +94,50 @@ export default function AdminPanel() {
     fetchCatalogo();
   };
 
+  const marcarDisenoActualizado = async (id) => {
+    await supabase.from('service_records').update({ diseno_cambio_pendiente: false }).eq('id', id);
+    fetchDisenosCambiados();
+  };
+
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm">
+      {disenosCambiados.length > 0 && (
+        <div className="mb-6 bg-blush-50 border-2 border-blush-200 rounded-xl p-4">
+          <h3 className="text-sm font-bold text-blush-600 mb-3">
+            🎨 Diseños cambiados pendientes de Booksy ({disenosCambiados.length})
+          </h3>
+          <div className="space-y-2">
+            {disenosCambiados.map((r) => (
+              <div key={r.id} className="flex justify-between items-center bg-white p-3 rounded-lg text-sm">
+                <div>
+                  <span className="font-semibold">{r.clients?.nombre}</span>{' '}
+                  <span className="text-gray-500">→ nuevo diseño: {r.diseno_pestanas}</span>
+                  <p className="text-xs text-gray-400">
+                    {new Date(r.fecha).toLocaleDateString('es-ES')} · Atendió: {r.staff?.nombre}
+                  </p>
+                </div>
+                <button
+                  onClick={() => marcarDisenoActualizado(r.id)}
+                  className="text-xs bg-blush-500 text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-blush-600 whitespace-nowrap ml-2"
+                >
+                  Ya lo actualicé ✓
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setTab('personal')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'personal' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'personal' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
         >
           Personal
         </button>
         <button
           onClick={() => setTab('catalogo')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalogo' ? 'bg-pink-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'catalogo' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
         >
           Catálogo de servicios
         </button>
@@ -120,7 +182,7 @@ export default function AdminPanel() {
               onChange={(e) => setNewStaff({ ...newStaff, auth_user_id: e.target.value })}
               className="p-2 border rounded-lg text-sm col-span-2"
             />
-            <button type="submit" className="col-span-2 bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold">
+            <button type="submit" className="col-span-2 bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold">
               Vincular personal
             </button>
           </form>
@@ -128,13 +190,42 @@ export default function AdminPanel() {
           <div className="space-y-2">
             {staffList.map((s) => (
               <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
-                <div>
-                  <span className="font-semibold">{s.nombre}</span>{' '}
-                  <span className="text-xs text-gray-400">({s.rol})</span>
-                </div>
+                {editingStaffId === s.id ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      autoFocus
+                      value={editingStaffNombre}
+                      onChange={(e) => setEditingStaffNombre(e.target.value)}
+                      className="p-1.5 border rounded-lg text-sm flex-1"
+                    />
+                    <button
+                      onClick={() => guardarNombreStaff(s.id)}
+                      className="text-xs bg-brand-600 text-white px-2 py-1.5 rounded-lg font-medium"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => setEditingStaffId(null)}
+                      className="text-xs text-gray-400 px-1"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{s.nombre}</span>
+                    <span className="text-xs text-gray-400">({s.rol})</span>
+                    <button
+                      onClick={() => iniciarEdicionNombre(s)}
+                      className="text-xs text-brand-600 hover:underline"
+                    >
+                      ✏️ Editar nombre
+                    </button>
+                  </div>
+                )}
                 <button
                   onClick={() => toggleStaffActivo(s.id, s.activo)}
-                  className={`text-xs px-2 py-1 rounded-lg font-medium ${s.activo ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}
+                  className={`text-xs px-2 py-1 rounded-lg font-medium whitespace-nowrap ml-2 ${s.activo ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}
                 >
                   {s.activo ? 'Activa' : 'Inactiva'}
                 </button>
@@ -161,7 +252,7 @@ export default function AdminPanel() {
               onChange={(e) => setNewServicio({ ...newServicio, subtipo: e.target.value })}
               className="p-2 border rounded-lg text-sm"
             />
-            <button type="submit" className="col-span-2 bg-pink-600 text-white py-2 rounded-lg text-sm font-semibold">
+            <button type="submit" className="col-span-2 bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold">
               Añadir servicio
             </button>
           </form>
@@ -187,3 +278,4 @@ export default function AdminPanel() {
     </div>
   );
 }
+
