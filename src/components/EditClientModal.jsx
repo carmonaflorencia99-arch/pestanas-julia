@@ -4,8 +4,9 @@ import { supabase } from '../supabaseClient';
 export default function EditClientModal({ client, onClose, onUpdated }) {
   const [nombre, setNombre] = useState(client.nombre || '');
   const [telefono, setTelefono] = useState(client.telefono || '');
-  const [alertasSalud, setAlertasSalud] = useState(client.alertas_salud || '');
+  const [alergias, setAlergias] = useState(client.alertas_salud || '');
   const [profesionalHabitual, setProfesionalHabitual] = useState(client.profesional_habitual_id || '');
+  const [notasGenerales, setNotasGenerales] = useState(client.notas_generales || '');
   const [profesionales, setProfesionales] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -29,8 +30,9 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
       .update({
         nombre,
         telefono,
-        alertas_salud: alertasSalud,
+        alertas_salud: alergias,
         profesional_habitual_id: profesionalHabitual || null,
+        notas_generales: notasGenerales,
       })
       .eq('id', client.id)
       .select()
@@ -47,7 +49,7 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-sm">
+      <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <h3 className="font-bold text-ink mb-4">Editar datos de la clienta</h3>
         <p className="text-xs text-gray-400 mb-4">
           Esto actualiza su ficha (no crea un nuevo registro en el historial de servicios).
@@ -72,17 +74,17 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
             />
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">ALERTAS DE SALUD</label>
+            <label className="text-xs font-semibold block mb-1">ALERGIAS</label>
             <textarea
               rows="3"
               placeholder="Alergias, sensibilidades, contraindicaciones..."
-              value={alertasSalud}
-              onChange={(e) => setAlertasSalud(e.target.value)}
+              value={alergias}
+              onChange={(e) => setAlergias(e.target.value)}
               className="w-full p-2 border rounded-lg text-sm"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">PROFESIONAL HABITUAL</label>
+            <label className="text-xs font-semibold block mb-1">PROFESIONAL DE PREFERENCIA</label>
             <select
               value={profesionalHabitual}
               onChange={(e) => setProfesionalHabitual(e.target.value)}
@@ -95,6 +97,16 @@ export default function EditClientModal({ client, onClose, onUpdated }) {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold block mb-1">HISTORIAL Y OBSERVACIONES</label>
+            <textarea
+              rows="3"
+              placeholder="Notas generales de la clienta..."
+              value={notasGenerales}
+              onChange={(e) => setNotasGenerales(e.target.value)}
+              className="w-full p-2 border rounded-lg text-sm"
+            />
           </div>
           <div className="flex gap-2 pt-2">
             <button
