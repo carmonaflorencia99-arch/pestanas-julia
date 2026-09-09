@@ -363,7 +363,7 @@ export default function AgendaDia({ currentStaff }) {
       {extras.length > 0 && (
         <div className="mb-6 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-amber-700 mb-3">
-            ⚠️ Servicios extra pendientes de cargar en Flowww ({extras.length})
+            ⚠️ Servicios extra pendientes de cargar en Booksy ({extras.length})
           </h3>
           <div className="space-y-2">
             {extras.map((ex) => (
