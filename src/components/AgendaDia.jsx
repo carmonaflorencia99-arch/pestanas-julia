@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
+import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
 
 const hoyStr = () => new Date().toISOString().slice(0, 10);
 const mananaStr = () => {
@@ -204,12 +205,8 @@ export default function AgendaDia({ currentStaff }) {
         setClientResults([]);
         return;
       }
-      const { data } = await supabase
-        .from('clients')
-        .select('id, nombre')
-        .ilike('nombre', `%${clientSearch}%`)
-        .limit(8);
-      setClientResults(data || []);
+      const base = await buscarClientas(clientSearch, 10);
+      setClientResults(await enriquecerClientas(base));
     }, 300);
     return () => clearTimeout(timer);
   }, [clientSearch]);
@@ -417,7 +414,7 @@ export default function AgendaDia({ currentStaff }) {
           </div>
           <input
             disabled={!!editingId}
-            placeholder="Buscar clienta..."
+            placeholder="Buscar por nombre o teléfono..."
             value={form.client ? form.client.nombre : clientSearch}
             onChange={(e) => {
               setClientSearch(e.target.value);
@@ -427,14 +424,22 @@ export default function AgendaDia({ currentStaff }) {
           />
           {editingId && <p className="text-xs text-gray-400 mt-1">Para cambiar de clienta, quitá esta asignación y creá una nueva.</p>}
           {clientResults.length > 0 && !form.client && (
-            <div className="absolute z-10 bg-white border rounded-lg mt-1 w-full shadow-md max-h-40 overflow-y-auto">
+            <div className="absolute z-10 bg-white border rounded-lg mt-1 w-full shadow-md max-h-72 overflow-y-auto">
               {clientResults.map((c) => (
                 <div
                   key={c.id}
                   onClick={() => seleccionarClienta(c)}
-                  className="p-2 text-sm hover:bg-brand-50 cursor-pointer"
+                  className="p-2 hover:bg-brand-50 cursor-pointer border-b last:border-b-0"
                 >
-                  {c.nombre}
+                  <p className="text-sm font-semibold text-ink">
+                    {c.nombre}
+                    {nombresRepetidos(clientResults)(c) && (
+                      <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                        Mismo nombre
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500">{resumenClienta(c)}</p>
                 </div>
               ))}
             </div>
@@ -443,6 +448,9 @@ export default function AgendaDia({ currentStaff }) {
             <p className="text-xs text-gray-400 mt-1">
               No se encontró ninguna clienta. Tocá "+ Nueva clienta" para darla de alta.
             </p>
+          )}
+          {form.client && (form.client.telefono || form.client.ultima_visita) && (
+            <p className="text-xs text-gray-500 mt-1">{resumenClienta(form.client)}</p>
           )}
           {cargandoMapeo && <p className="text-xs text-gray-400 mt-1">Buscando su último mapeo...</p>}
         </div>
@@ -725,4 +733,3 @@ export default function AgendaDia({ currentStaff }) {
     </div>
   );
 }
-
