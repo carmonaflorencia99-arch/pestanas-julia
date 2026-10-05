@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import Login from './components/Login';
 import ClientList from './components/ClientList';
@@ -7,14 +7,29 @@ import NewClientModal from './components/NewClientModal';
 import AdminPanel from './components/AdminPanel';
 import AgendaDia from './components/AgendaDia';
 import ColaProfesional from './components/ColaProfesional';
+import Inventario from './components/inventario/Inventario';
 import { exportRecordsToCsv } from './utils/exportCsv';
+import { estaBaja } from './utils/inventario';
 
 export default function App() {
   const [currentStaff, setCurrentStaff] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [view, setView] = useState('fichas'); // 'fichas' | 'agenda' | 'admin'
+  const [view, setView] = useState('fichas'); // 'fichas' | 'agenda' | 'inventario' | 'admin'
   const [checkingSession, setCheckingSession] = useState(true);
+  const [cajasPorPedir, setCajasPorPedir] = useState(0);
+
+  // Aviso de stock bajo en la pestaña Inventario (solo admin).
+  const revisarStock = useCallback(async () => {
+    const { data, error } = await supabase.from('inv_stock').select('en_almacen, stock_minimo, activo');
+    if (error || !data) return;
+    const hayCajas = data.some((s) => s.en_almacen > 0);
+    setCajasPorPedir(hayCajas ? data.filter((s) => s.activo && estaBaja(s)).length : 0);
+  }, []);
+
+  useEffect(() => {
+    if (currentStaff && currentStaff.rol === 'admin') revisarStock();
+  }, [currentStaff, revisarStock]);
 
   // Restaurar sesión si ya había un login previo (staff guardado localmente)
   useEffect(() => {
@@ -96,6 +111,20 @@ export default function App() {
           {currentStaff.rol === 'admin' && (
             <>
               <button
+                onClick={() => setView('inventario')}
+                className={`relative px-3 py-2 rounded-lg text-xs font-medium ${view === 'inventario' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
+                Inventario
+                {cajasPorPedir > 0 && (
+                  <span
+                    title={`${cajasPorPedir} referencias con pocas cajas`}
+                    className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-blush-500 text-white text-[10px] font-bold flex items-center justify-center"
+                  >
+                    {cajasPorPedir}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={() => setView('admin')}
                 className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'admin' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
               >
@@ -120,6 +149,8 @@ export default function App() {
 
       <main className="max-w-4xl mx-auto">
         {view === 'admin' && currentStaff.rol === 'admin' && <AdminPanel />}
+
+        {view === 'inventario' && currentStaff.rol === 'admin' && <Inventario onStockCambiado={revisarStock} />}
 
         {view === 'agenda' && <AgendaDia currentStaff={currentStaff} />}
 

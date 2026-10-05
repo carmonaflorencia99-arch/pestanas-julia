@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import FichaTabletModal from './FichaTabletModal';
+import CajasProfesional from './inventario/CajasProfesional';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
@@ -45,6 +46,8 @@ export default function ColaProfesional({ currentStaff }) {
     <div className="max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-1">Hola, {currentStaff.nombre} 👋</h2>
       <p className="text-gray-400 mb-8">Tu agenda de hoy</p>
+
+      <CajasProfesional currentStaff={currentStaff} />
 
       {descansos.length > 0 && (
         <div className="space-y-2 mb-6">

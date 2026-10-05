@@ -70,3 +70,10 @@ El PIN nunca se guarda en texto plano: se almacena como contraseña
 cifrada dentro de Supabase Auth.
 Revisa periódicamente el listado de personal activo/inactivo en el
 Panel de Administración cuando alguien deja el equipo.
+
+---
+Inventario de cajas de pestañas
+Ejecuta `schema_inventario.sql` una vez en el SQL Editor de Supabase. Crea las 147 referencias (21 tipos × largos de 8 a 14 mm) con stock mínimo 2.
+Admin: pestaña "Inventario" → Stock (cuadrícula y avisos de pocas cajas), Recuento y entradas (escanear el QR de cada caja), Movimientos (devolver, corregir o borrar cajas) y Referencias (tipos, largos y mínimos).
+Profesional: en su agenda tiene el botón "Sacar caja" para escanear las cajas que coge del almacén. No ve el stock.
+Cada caja de DeceMars se identifica por el número `tid` de su QR, que es único por caja. La cámara solo funciona en la web publicada (https), no en http.
