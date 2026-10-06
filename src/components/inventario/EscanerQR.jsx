@@ -26,36 +26,90 @@ export default function EscanerQR({ onCodigo, pausado = false, alto = 'h-64' }) 
     let cancelado = false;
     let temporizador = null;
 
-    const leerFotograma = () => {
+    // Lector nativo del sistema (Chrome en Android y Safari reciente):
+    // más rápido y lee mejor QR pequeños o con brillo. Si no existe, jsQR.
+    let detectorNativo = null;
+    try {
+      if ('BarcodeDetector' in window) {
+        detectorNativo = new window.BarcodeDetector({ formats: ['qr_code'] });
+      }
+    } catch (e) {
+      detectorNativo = null;
+    }
+    let vuelta = 0;
+
+    const entregar = (texto) => {
+      const codigo = extraerCodigo(texto);
+      if (!codigo) return;
+      const ahora = Date.now();
+      const ultimo = ultimoRef.current;
+      if (!(codigo === ultimo.codigo && ahora - ultimo.hora < 3000)) {
+        ultimoRef.current = { codigo, hora: ahora };
+        onCodigoRef.current(codigo);
+      } else {
+        ultimoRef.current.hora = ahora;
+      }
+    };
+
+    // jsQR: alterna entre el centro de la imagen a resolución real (para
+    // QR pequeños, que es lo habitual en las cajas) y la imagen completa.
+    const leerConJsQR = (video, canvas) => {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) return null;
+      let sx = 0;
+      let sy = 0;
+      let sw = vw;
+      let sh = vh;
+      let w;
+      let h;
+      if (vuelta % 2 === 0) {
+        const lado = Math.min(vw, vh, 720);
+        sx = Math.floor((vw - lado) / 2);
+        sy = Math.floor((vh - lado) / 2);
+        sw = lado;
+        sh = lado;
+        w = lado;
+        h = lado;
+      } else {
+        const escala = Math.min(1, 800 / vw);
+        w = Math.floor(vw * escala);
+        h = Math.floor(vh * escala);
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+      const imagen = ctx.getImageData(0, 0, w, h);
+      const resultado = jsQR(imagen.data, w, h, { inversionAttempts: 'attemptBoth' });
+      return resultado && resultado.data ? resultado.data : null;
+    };
+
+    const leerFotograma = async () => {
       if (cancelado) return;
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas && video.readyState >= 2 && !pausadoRef.current) {
-        // Se reduce la imagen para que vaya fluido en tablets antiguas.
-        const escala = Math.min(1, 640 / (video.videoWidth || 640));
-        const w = Math.floor((video.videoWidth || 640) * escala);
-        const h = Math.floor((video.videoHeight || 480) * escala);
-        if (w > 0 && h > 0) {
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, w, h);
-          const imagen = ctx.getImageData(0, 0, w, h);
-          const resultado = jsQR(imagen.data, w, h, { inversionAttempts: 'dontInvert' });
-          if (resultado && resultado.data) {
-            const codigo = extraerCodigo(resultado.data);
-            const ahora = Date.now();
-            const ultimo = ultimoRef.current;
-            if (codigo && !(codigo === ultimo.codigo && ahora - ultimo.hora < 3000)) {
-              ultimoRef.current = { codigo, hora: ahora };
-              onCodigoRef.current(codigo);
-            } else if (codigo) {
-              ultimoRef.current.hora = ahora;
+        vuelta += 1;
+        try {
+          if (detectorNativo) {
+            const encontrados = await detectorNativo.detect(video);
+            if (encontrados && encontrados.length && encontrados[0].rawValue) {
+              entregar(encontrados[0].rawValue);
+            } else if (vuelta % 3 === 0) {
+              // de vez en cuando también jsQR, por si el nativo falla con esa caja
+              const texto = leerConJsQR(video, canvas);
+              if (texto) entregar(texto);
             }
+          } else {
+            const texto = leerConJsQR(video, canvas);
+            if (texto) entregar(texto);
           }
+        } catch (e) {
+          detectorNativo = null;
         }
       }
-      temporizador = setTimeout(leerFotograma, 180);
+      if (!cancelado) temporizador = setTimeout(leerFotograma, detectorNativo ? 120 : 150);
     };
 
     const arrancar = async () => {
@@ -66,7 +120,7 @@ export default function EscanerQR({ onCodigo, pausado = false, alto = 'h-64' }) 
       }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false,
         });
         if (cancelado) {
@@ -74,6 +128,16 @@ export default function EscanerQR({ onCodigo, pausado = false, alto = 'h-64' }) 
           return;
         }
         streamRef.current = stream;
+        // Enfoque automático continuo si la cámara lo permite (ayuda con cajas cerca).
+        try {
+          const pista = stream.getVideoTracks()[0];
+          const capacidades = pista.getCapabilities ? pista.getCapabilities() : {};
+          if (capacidades.focusMode && capacidades.focusMode.includes('continuous')) {
+            await pista.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+          }
+        } catch (e) {
+          // no todas las cámaras lo permiten
+        }
         const video = videoRef.current;
         video.srcObject = stream;
         video.setAttribute('playsinline', 'true');
@@ -123,7 +187,7 @@ export default function EscanerQR({ onCodigo, pausado = false, alto = 'h-64' }) 
             />
           </div>
           <p className="absolute bottom-2 inset-x-0 text-center text-xs text-white/80">
-            {pausado ? 'En pausa' : 'Enfoca el QR de la caja'}
+            {pausado ? 'En pausa' : 'Pon el QR dentro del cuadro, a un palmo de la cámara'}
           </p>
         </div>
       )}

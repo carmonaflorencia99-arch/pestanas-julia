@@ -66,6 +66,7 @@ export default function EntradasRecuento({ referencias, stock, onCambios }) {
     e.preventDefault();
     const n = parseInt(cantidadSinQR, 10);
     if (!ref || !n || n < 1) return;
+    if (n > 20 && !window.confirm(`¿Seguro que quieres añadir ${n} cajas de ${nombreReferencia(ref)}?`)) return;
     const { error } = await supabase.rpc('inv_alta_sin_codigo', {
       p_referencia_id: ref.id,
       p_cantidad: n,

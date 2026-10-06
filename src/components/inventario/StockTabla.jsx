@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { agruparPorTipo, estaBaja } from '../../utils/inventario';
+import AjustarCantidad from './AjustarCantidad';
 
 // Cuadrícula de stock: una fila por tipo, una columna por largo.
 // Rojo = sin cajas · ámbar = en el mínimo o por debajo · verde = bien.
-export default function StockTabla({ stock }) {
+export default function StockTabla({ stock, onCambios }) {
   const [soloBajos, setSoloBajos] = useState(false);
+  const [ajustando, setAjustando] = useState(null);
   const [copiado, setCopiado] = useState(false);
 
   const activos = stock.filter((s) => s.activo);
@@ -106,12 +108,18 @@ export default function StockTabla({ stock }) {
                   const s = g.refs.find((r) => r.largo === l);
                   return (
                     <td key={l} className="px-1 py-1">
-                      <div
-                        className={`rounded-lg text-center py-1.5 ${estiloCelda(s)}`}
-                        title={s ? `Mínimo: ${s.stock_minimo}` : ''}
-                      >
-                        {s ? s.en_almacen : '—'}
-                      </div>
+                      {s ? (
+                        <button
+                          type="button"
+                          onClick={() => setAjustando(s)}
+                          className={`w-full rounded-lg text-center py-1.5 hover:ring-2 hover:ring-brand-200 ${estiloCelda(s)}`}
+                          title={`Mínimo: ${s.stock_minimo} · toca para corregir la cantidad`}
+                        >
+                          {s.en_almacen}
+                        </button>
+                      ) : (
+                        <div className={`rounded-lg text-center py-1.5 ${estiloCelda(s)}`}>—</div>
+                      )}
                     </td>
                   );
                 })}
@@ -124,8 +132,13 @@ export default function StockTabla({ stock }) {
         </table>
       </div>
       <p className="text-xs text-gray-400 mt-3">
-        Avisa cuando quedan tantas cajas como el mínimo o menos. Los mínimos se cambian en <em>Referencias</em>.
+        Toca un número para corregir la cantidad. Avisa cuando quedan tantas cajas como el mínimo o menos; los
+        mínimos se cambian en <em>Referencias</em>.
       </p>
+
+      {ajustando && (
+        <AjustarCantidad fila={ajustando} onClose={() => setAjustando(null)} onGuardado={onCambios} />
+      )}
     </div>
   );
 }

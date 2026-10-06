@@ -68,7 +68,7 @@ export default function Inventario({ onStockCambiado }) {
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 mb-4">{error}</div>}
 
-      {!error && tab === 'stock' && <StockTabla stock={stock} />}
+      {!error && tab === 'stock' && <StockTabla stock={stock} onCambios={cargar} />}
       {!error && tab === 'entradas' && (
         <EntradasRecuento referencias={referencias} stock={stock} onCambios={cargar} />
       )}
