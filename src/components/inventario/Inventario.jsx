@@ -43,7 +43,7 @@ export default function Inventario({ onStockCambiado }) {
   ];
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <div className="flex flex-wrap gap-2">
           {tabs.map(([valor, texto]) => (

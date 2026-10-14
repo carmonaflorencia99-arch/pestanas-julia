@@ -70,9 +70,13 @@ export default function App() {
   // sin buscador general ni el resto de la navegación.
   if (currentStaff.rol === 'profesional') {
     return (
-      <div className="min-h-screen bg-paper p-4 sm:p-8">
-        <div className="max-w-3xl mx-auto flex justify-end mb-2">
-          <button onClick={handleLogout} className="text-sm text-gray-400 active:text-gray-600">
+      <div className="min-h-screen p-4 sm:p-8">
+        <div className="max-w-3xl mx-auto flex justify-between items-center mb-6">
+          <p className="font-display italic text-lg font-semibold text-brand-700">Las Pestañas de Julia</p>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-500 font-semibold bg-white border border-gray-100 shadow-sm px-4 py-2 rounded-full active:bg-gray-50"
+          >
             Salir
           </button>
         </div>
@@ -81,73 +85,74 @@ export default function App() {
     );
   }
 
+  const navBtn = (id, label, extra = null) => (
+    <button
+      key={id}
+      onClick={() => setView(id)}
+      className={`relative px-3.5 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap ${
+        view === id ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+      }`}
+    >
+      {label}
+      {extra}
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-paper p-4 font-sans text-ink">
-      <header className="max-w-4xl mx-auto mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-        <div>
-          <h1 className="font-display italic text-xl font-semibold text-brand-700 leading-tight">
-            Las Pestañas de Julia
-            <svg className="brand-swash" viewBox="0 0 46 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 6C10 1 16 1 23 4C30 7 36 7 44 2" stroke="#EF9FB6" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </h1>
-          <p className="text-xs text-gray-400">
-            {currentStaff.nombre} · <span className="capitalize">{currentStaff.rol}</span>
-          </p>
+    <div className="min-h-screen p-3 sm:p-6 font-sans text-ink">
+      <header className="sticky top-3 z-30 max-w-5xl mx-auto mb-6 bg-white/80 backdrop-blur-md border border-white shadow-sm rounded-2xl px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-brand-600 text-blush-100 flex items-center justify-center font-display italic text-xl font-semibold">
+            J
+          </div>
+          <div>
+            <h1 className="font-display italic text-lg font-semibold text-brand-700 leading-tight">
+              Las Pestañas de Julia
+            </h1>
+            <p className="text-xs text-gray-400">
+              {currentStaff.nombre} · <span className="capitalize">{currentStaff.rol}</span>
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setView('fichas')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'fichas' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-          >
-            Fichas
-          </button>
-          <button
-            onClick={() => setView('agenda')}
-            className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'agenda' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-          >
-            Agenda de hoy
-          </button>
+
+        <nav className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl overflow-x-auto max-w-full">
+          {navBtn('fichas', 'Fichas')}
+          {navBtn('agenda', 'Agenda de hoy')}
+          {currentStaff.rol === 'admin' &&
+            navBtn(
+              'inventario',
+              'Inventario',
+              cajasPorPedir > 0 && (
+                <span
+                  title={`${cajasPorPedir} referencias con pocas cajas`}
+                  className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-blush-500 text-white text-[10px] font-bold flex items-center justify-center"
+                >
+                  {cajasPorPedir}
+                </span>
+              )
+            )}
+          {currentStaff.rol === 'admin' && navBtn('admin', 'Administración')}
+        </nav>
+
+        <div className="flex items-center gap-1">
           {currentStaff.rol === 'admin' && (
-            <>
-              <button
-                onClick={() => setView('inventario')}
-                className={`relative px-3 py-2 rounded-lg text-xs font-medium ${view === 'inventario' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-              >
-                Inventario
-                {cajasPorPedir > 0 && (
-                  <span
-                    title={`${cajasPorPedir} referencias con pocas cajas`}
-                    className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 rounded-full bg-blush-500 text-white text-[10px] font-bold flex items-center justify-center"
-                  >
-                    {cajasPorPedir}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setView('admin')}
-                className={`px-3 py-2 rounded-lg text-xs font-medium ${view === 'admin' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600'}`}
-              >
-                Administración
-              </button>
-              <button
-                onClick={exportRecordsToCsv}
-                className="px-3 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
-              >
-                Exportar CSV
-              </button>
-            </>
+            <button
+              onClick={exportRecordsToCsv}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100"
+            >
+              Exportar CSV
+            </button>
           )}
           <button
             onClick={handleLogout}
-            className="px-3 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-gray-600"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
             Salir
           </button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto">
+      <main className="max-w-5xl mx-auto">
         {view === 'admin' && currentStaff.rol === 'admin' && <AdminPanel />}
 
         {view === 'inventario' && currentStaff.rol === 'admin' && <Inventario onStockCambiado={revisarStock} />}
@@ -164,7 +169,7 @@ export default function App() {
                 canCreateClient={canCreateClient}
               />
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm md:col-span-2">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 md:col-span-2">
               {selectedClient ? (
                 <ClientFicha
                   client={selectedClient}

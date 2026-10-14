@@ -44,7 +44,7 @@ export default function CajasProfesional({ currentStaff }) {
         </div>
         <button
           onClick={() => setAbierto(true)}
-          className="bg-pink-600 text-white font-semibold px-5 py-3 rounded-xl active:bg-pink-700 whitespace-nowrap"
+          className="bg-brand-600 text-white font-semibold px-5 py-3 rounded-full active:bg-brand-700 whitespace-nowrap"
         >
           Sacar caja
         </button>

@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
+// Solo las extensiones de pestañas exigen diseño u observaciones.
+const esExtensionPestanas = (categoria, subtipo) => {
+  const t = `${categoria || ''} ${subtipo || ''}`.toLowerCase();
+  return t.includes('extens') && t.includes('pesta');
+};
+
 const esServicioDePestanas = (categoria, subtipo) => {
   const texto = `${categoria || ''} ${subtipo || ''}`.toLowerCase();
   return texto.includes('pestañas') || texto.includes('lifting');
@@ -113,10 +119,10 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
   const guardarItem = async (index) => {
     const item = items[index];
 
-    // Lo que se le hizo a la clienta NO puede quedar vacío: en pestañas/lifting
+    // Lo que se le hizo a la clienta NO puede quedar vacío: en extensiones de pestañas
     // hace falta el diseño o las observaciones (puede ser lo mismo que la última vez).
     if (
-      esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) &&
+      esExtensionPestanas(item.categoria_servicio, item.subtipo_servicio) &&
       !(item.diseno_pestanas || '').trim() &&
       !(item.historial_observaciones || '').trim()
     ) {
@@ -226,9 +232,21 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     }
   };
 
+  // Cuando todos los servicios están confirmados, la cita pasa sola a "completado".
+  useEffect(() => {
+    if (
+      asignacion?.id &&
+      asignacion.estado !== 'completado' &&
+      items.length > 0 &&
+      items.every((it) => it.guardado)
+    ) {
+      supabase.from('asignaciones_dia').update({ estado: 'completado' }).eq('id', asignacion.id);
+    }
+  }, [items, asignacion]);
+
   const handleVolver = () => {
     const sinConfirmar = items.filter((it) => !it.guardado).length;
-    const yaAtendida = asignacion && asignacion.estado && asignacion.estado !== 'pendiente';
+    const yaAtendida = asignacion && (asignacion.llego || (asignacion.estado && asignacion.estado !== 'pendiente'));
     if (yaAtendida && sinConfirmar > 0) {
       const seguro = window.confirm(
         `Todavía no confirmaste ${sinConfirmar} servicio${sinConfirmar > 1 ? 's' : ''} de ${client.nombre}. ` +
@@ -274,14 +292,14 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
             <p className="font-bold">⚠️ Falta registrar lo que se le hizo a {client.nombre}</p>
             <p className="text-sm">
               Revisa el servicio y el diseño (ya vienen cargados con lo de la última vez) y pulsa "Confirmar".
-              Hasta entonces no se puede completar.
+              Quedará guardado en su historial.
             </p>
           </div>
         )}
 
         {items.length > 0 && pendientes === 0 && (
           <p className="mb-4 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
-            ✓ Todo registrado. Ya puedes volver y pulsar "Completar".
+            ✓ Todo registrado. Ya puedes volver a tu agenda.
           </p>
         )}
 

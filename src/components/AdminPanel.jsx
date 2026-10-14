@@ -125,7 +125,7 @@ export default function AdminPanel() {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       {disenosCambiados.length > 0 && (
         <div className="mb-6 bg-blush-50 border-2 border-blush-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-blush-600 mb-3">

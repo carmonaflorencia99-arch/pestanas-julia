@@ -21,7 +21,7 @@ const PASOS = [
     icono: '✅',
     titulo: 'Confirma lo que le hiciste',
     texto:
-      'Revisa el servicio y el diseño. Si es igual que la última vez, solo pulsa "Confirmar este servicio". Si cambió algo, corrígelo antes de confirmar. Recepción verá los cambios de diseño para actualizarlos en Booksy.',
+      'Revisa el servicio y el diseño. En las extensiones de pestañas es obligatorio dejar el diseño o las observaciones; en el resto de servicios es opcional. Si es igual que la última vez, solo pulsa "Confirmar este servicio". Si cambió algo, corrígelo antes de confirmar. Recepción verá los cambios de diseño para actualizarlos en Booksy.',
   },
   {
     icono: '➕',
@@ -30,9 +30,9 @@ const PASOS = [
   },
   {
     icono: '🏁',
-    titulo: 'Pulsa "En curso" y "Completar"',
+    titulo: 'Y listo',
     texto:
-      'Marca "En curso" cuando empieces y "Completar" al terminar. No se puede completar si falta registrar lo que se le hizo: lo que la clienta se hizo tiene que quedar siempre guardado. Si se te olvida, verás un aviso rojo hasta que lo registres.',
+      'Cuando confirmas lo que le hiciste, la clienta pasa sola a "Atendidas hoy". No hace falta marcar nada más. Lo que la clienta se hizo tiene que quedar siempre guardado: si se te olvida, verás un aviso rojo en tu agenda hasta que lo registres.',
   },
   {
     icono: '🔗',

@@ -41,7 +41,7 @@ export default function ClientList({ selectedClient, onSelectClient, onNewClient
   const esRepetido = nombresRepetidos(clients);
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm">
+    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
       <div className="flex justify-between items-center mb-3">
         <h2 className="font-bold text-ink">Clientas</h2>
         {canCreateClient && (

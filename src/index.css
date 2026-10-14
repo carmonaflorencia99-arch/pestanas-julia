@@ -5,6 +5,18 @@
 body {
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   color: #2B2422;
+  background-color: #F7F6F2;
+  /* Halos suaves de menta y rosa: aportan profundidad sin recargar */
+  background-image:
+    radial-gradient(900px 500px at 8% -10%, rgba(168, 218, 199, 0.35), transparent 60%),
+    radial-gradient(800px 480px at 100% 0%, rgba(246, 192, 208, 0.28), transparent 60%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #D1EBE1;
 }
 
 .font-display {
@@ -29,4 +41,62 @@ body {
 
 .animate-shake {
   animation: shake 0.4s ease-in-out;
+}
+
+
+/* ---------- Capa de modernización (campos, botones, movimiento) ---------- */
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select,
+textarea {
+  background-color: #fff;
+  border-color: #E6E3DF;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #56B192;
+  box-shadow: 0 0 0 4px rgba(124, 199, 172, 0.25);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #A8A29C;
+}
+
+button {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+main > *,
+.fade-up {
+  animation: fade-up 0.25s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main > *, .fade-up { animation: none; }
+  button { transition: none; }
+}
+
+/* Barras de desplazamiento discretas */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #D3CFCA transparent;
 }

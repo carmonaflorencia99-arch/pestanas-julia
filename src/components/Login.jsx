@@ -63,8 +63,8 @@ export default function Login({ onLoggedIn }) {
   };
 
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center p-4">
-      <div className={`bg-white rounded-2xl shadow-sm p-8 w-full max-w-sm ${shake ? 'animate-shake' : ''}`}>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className={`bg-white rounded-3xl shadow-md border border-gray-100 p-8 w-full max-w-sm ${shake ? 'animate-shake' : ''}`}>
         <h1 className="font-display italic text-2xl font-semibold text-brand-700 text-center leading-tight">
           Las Pestañas de Julia
         </h1>

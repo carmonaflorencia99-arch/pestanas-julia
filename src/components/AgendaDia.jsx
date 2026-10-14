@@ -388,7 +388,7 @@ export default function AgendaDia({ currentStaff }) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm">
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 className="font-bold text-ink mb-1">Agenda</h2>
       <p className="text-xs text-gray-400 mb-4">
         Asigna qué profesional atiende a cada clienta. Cada profesional ve esto en su tablet a partir del día que corresponda.
@@ -782,8 +782,14 @@ export default function AgendaDia({ currentStaff }) {
                 </div>
               </div>
               {faltantesIds.has(a.id) && (
-                <p className="mt-2 text-xs bg-red-50 text-red-600 font-semibold px-2 py-1.5 rounded-lg">
-                  ⚠️ {a.staff?.nombre} todavía no registró lo que se le hizo a esta clienta
+                <p
+                  className={`mt-2 text-xs font-semibold px-2 py-1.5 rounded-lg ${
+                    a.fecha < hoyStr() ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  {a.fecha < hoyStr()
+                    ? `⚠️ ${a.staff?.nombre} no registró lo que se le hizo a esta clienta`
+                    : `📝 ${a.staff?.nombre} aún no registró lo realizado`}
                 </p>
               )}
               {paralelosDe(a, asignaciones).map((b) => (

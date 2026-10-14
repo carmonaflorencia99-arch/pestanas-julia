@@ -14,16 +14,14 @@ export function registrosDe(a, records) {
   ).length;
 }
 
-// Citas ya atendidas a las que les falta registrar lo realizado: completadas, o en curso
-// de un día anterior (olvidaron cerrarlas). Las "en curso" de hoy no se marcan: la clienta
-// puede estar atendiéndose en este momento.
+// Citas ya atendidas (la clienta llegó o se marcó como atendida) a las que
+// les falta registrar lo realizado.
 export function sinRegistro(asignaciones, records) {
-  const hoy = new Date().toISOString().slice(0, 10);
   return (asignaciones || []).filter(
     (a) =>
       a.tipo !== 'descanso' &&
       a.client_id &&
-      (a.estado === 'completado' || (a.estado === 'en_proceso' && a.fecha < hoy)) &&
+      (a.llego || a.estado === 'completado' || a.estado === 'en_proceso') &&
       registrosDe(a, records) < registrosNecesarios(a)
   );
 }
