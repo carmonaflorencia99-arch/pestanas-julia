@@ -78,3 +78,44 @@ export function proximoServicioDesde(catalogo, categoria, subtipo) {
   }
   return { categoria_servicio: categoria, subtipo_servicio: subtipo };
 }
+
+// ---------- Servicio según el último servicio que tenía en Flowww ----------
+
+// Busca en el catálogo { categoria: [subtipos] } una categoría y subtipo por texto.
+function buscarEnCatalogo(catalogo, catRe, subRes) {
+  const cats = Object.keys(catalogo).filter((c) => catRe.test(quitarAcentos(c).toLowerCase()));
+  for (const re of subRes) {
+    for (const cat of cats) {
+      const sub = catalogo[cat].find((s) => re.test(quitarAcentos(s).toLowerCase()));
+      if (sub) return { categoria_servicio: cat, subtipo_servicio: sub };
+    }
+  }
+  if (cats.length && subRes.length === 0) return { categoria_servicio: cats[0], subtipo_servicio: catalogo[cats[0]][0] };
+  return null;
+}
+
+// "EXTENSIONES DE PESTAÑAS 2D (PRIMERA PUESTA)" → Reposición 2D del catálogo, etc.
+export function servicioDesdeFlowww(catalogo, zona) {
+  const t = quitarAcentos(zona).toLowerCase();
+  if (!t.trim()) return null;
+
+  if (/extensiones de pestanas/.test(t)) {
+    let tipo = null;
+    if (/mega/.test(t)) tipo = 'mega';
+    else if (/volumen/.test(t)) tipo = 'volumen';
+    else if (/(^|[^\d])2\s?d(?![a-z])/.test(t)) tipo = '2d';
+    else if (/clasic/.test(t)) tipo = 'clasicas';
+    return tipo ? buscarServicioExtension(catalogo, tipo, true) : null; // "mix" y otros: se deduce del historial
+  }
+  if (/lifting/.test(t)) return buscarEnCatalogo(catalogo, /lifting|cejas/, [/lifting de pestanas/, /lifting/]);
+  if (/laminado/.test(t)) return buscarEnCatalogo(catalogo, /lifting|cejas/, [/laminado/]);
+  if (/depilacion de cejas|depilacion y tinte de cejas/.test(t))
+    return buscarEnCatalogo(catalogo, /lifting|cejas/, [/depilacion de cejas con hilo/, /depilacion de cejas/]);
+  if (/belleza pies|pedicura/.test(t))
+    return buscarEnCatalogo(catalogo, /pedicur/, [/semiperm/.test(t) ? /semiperm/ : /tradicion/, /pedicura/]);
+  if (/acrygel|acrigel|unas nuevas|bano de gel|relleno/.test(t))
+    return buscarEnCatalogo(catalogo, /manicur/, [/esculp|gel/]);
+  if (/esmaltado|manicura/.test(t))
+    return buscarEnCatalogo(catalogo, /manicur/, [/semiperm/.test(t) ? /semiperm/ : /tradicion/, /manicura/]);
+  return null;
+}

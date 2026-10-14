@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
-import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde } from '../lib/servicios';
+import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww } from '../lib/servicios';
+import { sinRegistro } from '../lib/registros';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
 
 const hoyStr = () => new Date().toISOString().slice(0, 10);
@@ -95,7 +96,7 @@ export default function AgendaDia({ currentStaff }) {
     // clienta (cargadas en su alta) para poder autocompletar.
     const { data: clienteCompleto } = await supabase
       .from('clients')
-      .select('id, nombre, profesional_habitual_id, notas_generales')
+      .select('*')
       .eq('id', c.id)
       .single();
 
@@ -128,10 +129,17 @@ export default function AgendaDia({ currentStaff }) {
       servicioAuto = proximoServicioDesde(catalogo, data.categoria_servicio, data.subtipo_servicio);
       origen = 'según su última visita';
     } else {
-      const tipo = inferirTipoExtension(historial);
-      if (tipo) {
-        servicioAuto = buscarServicioExtension(catalogo, tipo, true);
-        origen = 'deducido de su historial';
+      // Sin visitas en la app: lo último que se hizo en Flowww; si no, se deduce del mapeo.
+      const deFlowww = servicioDesdeFlowww(catalogo, clienteCompleto?.flowww_ultimo_servicio);
+      if (deFlowww) {
+        servicioAuto = deFlowww;
+        origen = 'según su último servicio en Flowww';
+      } else {
+        const tipo = inferirTipoExtension(historial);
+        if (tipo) {
+          servicioAuto = buscarServicioExtension(catalogo, tipo, true);
+          origen = 'deducido de su historial';
+        }
       }
     }
 
@@ -220,6 +228,23 @@ export default function AgendaDia({ currentStaff }) {
   useEffect(() => {
     fetchAsignaciones();
   }, [fetchAsignaciones]);
+
+  // Registros técnicos del día que se mira: para avisar si falta registrar algo.
+  const [registrosDia, setRegistrosDia] = useState([]);
+  const fetchRegistrosDia = useCallback(async () => {
+    const { data } = await supabase
+      .from('service_records')
+      .select('client_id, staff_id, fecha, es_extra')
+      .gte('fecha', `${fechaAgenda}T00:00:00`)
+      .lt('fecha', `${fechaAgenda}T23:59:59.999`);
+    setRegistrosDia(data || []);
+  }, [fechaAgenda]);
+  useEffect(() => {
+    fetchRegistrosDia();
+    const t = setInterval(fetchRegistrosDia, 60000);
+    return () => clearInterval(t);
+  }, [fetchRegistrosDia, asignaciones]);
+  const faltantesIds = new Set(sinRegistro(asignaciones, registrosDia).map((a) => a.id));
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -756,6 +781,11 @@ export default function AgendaDia({ currentStaff }) {
                   </button>
                 </div>
               </div>
+              {faltantesIds.has(a.id) && (
+                <p className="mt-2 text-xs bg-red-50 text-red-600 font-semibold px-2 py-1.5 rounded-lg">
+                  ⚠️ {a.staff?.nombre} todavía no registró lo que se le hizo a esta clienta
+                </p>
+              )}
               {paralelosDe(a, asignaciones).map((b) => (
                 <p key={b.id} className="mt-2 text-xs bg-blush-50 text-blush-700 font-semibold px-2 py-1.5 rounded-lg">
                   🔗 En paralelo con {b.staff?.nombre}: {resumenServicios(b)}

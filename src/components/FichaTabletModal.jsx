@@ -6,7 +6,7 @@ const esServicioDePestanas = (categoria, subtipo) => {
   return texto.includes('pestañas') || texto.includes('lifting');
 };
 
-export default function FichaTabletModal({ client, asignacion, currentStaff, onClose }) {
+export default function FichaTabletModal({ client, asignacion, currentStaff, onClose, avisoFalta = false }) {
   const [catalogo, setCatalogo] = useState({});
   const [records, setRecords] = useState([]);
 
@@ -89,12 +89,41 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     fetchRecords();
   }, [fetchCatalogo, fetchRecords]);
 
+  // El diseño de pestañas de la última vez viene ya escrito: si no cambió,
+  // basta con confirmar. Si cambió, se edita y recepción lo verá como cambio.
+  const [disenoPrellenado, setDisenoPrellenado] = useState(false);
+  useEffect(() => {
+    if (disenoPrellenado || items.length === 0 || records.length === 0) return;
+    const ultimo = records.find((r) => r.diseno_pestanas && r.diseno_pestanas.trim());
+    setDisenoPrellenado(true);
+    if (!ultimo) return;
+    setItems((prev) =>
+      prev.map((it) =>
+        esServicioDePestanas(it.categoria_servicio, it.subtipo_servicio) && !(it.diseno_pestanas || '').trim()
+          ? { ...it, diseno_pestanas: ultimo.diseno_pestanas }
+          : it
+      )
+    );
+  }, [items.length, records, disenoPrellenado]);
+
   const actualizarItem = (index, campo, valor) => {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [campo]: valor } : it)));
   };
 
   const guardarItem = async (index) => {
     const item = items[index];
+
+    // Lo que se le hizo a la clienta NO puede quedar vacío: en pestañas/lifting
+    // hace falta el diseño o las observaciones (puede ser lo mismo que la última vez).
+    if (
+      esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) &&
+      !(item.diseno_pestanas || '').trim() &&
+      !(item.historial_observaciones || '').trim()
+    ) {
+      alert('Falta registrar lo que se le hizo: escribe el diseño o las observaciones (puede ser igual que la última vez).');
+      return false;
+    }
+
     setSavingIndex(index);
 
     // Si es un servicio de pestañas con diseño cargado, comparamos contra
@@ -124,6 +153,10 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         diseno_pestanas: item.diseno_pestanas || null,
         diseno_cambio_pendiente: disenoCambioPendiente,
         historial_observaciones: item.historial_observaciones,
+        // Si se está registrando una cita de un día anterior, queda con la fecha de esa cita.
+        ...(asignacion?.fecha && asignacion.fecha < new Date().toISOString().slice(0, 10)
+          ? { fecha: `${asignacion.fecha}T12:00:00` }
+          : {}),
       },
     ]);
     setSavingIndex(null);
@@ -132,15 +165,17 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       setGuardadoIndex(index);
       fetchRecords();
       setTimeout(() => setGuardadoIndex(null), 1500);
-    } else {
-      alert('No se pudo guardar este servicio.');
+      return true;
     }
+    alert('No se pudo guardar este servicio.');
+    return false;
   };
 
   const guardarTodosPendientes = async () => {
     for (let i = 0; i < items.length; i++) {
       if (!items[i].guardado) {
-        await guardarItem(i);
+        const ok = await guardarItem(i);
+        if (!ok) break;
       }
     }
   };
@@ -191,6 +226,19 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     }
   };
 
+  const handleVolver = () => {
+    const sinConfirmar = items.filter((it) => !it.guardado).length;
+    const yaAtendida = asignacion && asignacion.estado && asignacion.estado !== 'pendiente';
+    if (yaAtendida && sinConfirmar > 0) {
+      const seguro = window.confirm(
+        `Todavía no confirmaste ${sinConfirmar} servicio${sinConfirmar > 1 ? 's' : ''} de ${client.nombre}. ` +
+          'Lo que se le hizo tiene que quedar registrado. ¿Salir igualmente?'
+      );
+      if (!seguro) return;
+    }
+    onClose();
+  };
+
   const cargadoPorRecepcion = asignacion?.servicios?.length > 0 || asignacion?.categoria_servicio;
   const pendientes = items.filter((it) => !it.guardado).length;
 
@@ -199,7 +247,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       <div className="max-w-2xl mx-auto p-6 pb-16">
         <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2 pb-4">
           <button
-            onClick={onClose}
+            onClick={handleVolver}
             className="text-gray-400 text-lg font-medium flex items-center gap-1 active:text-gray-600"
           >
             ← Volver
@@ -219,6 +267,22 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
           >
             {asignacion.pagado ? '💰 Pagó' : 'Pendiente de pago'}
           </span>
+        )}
+
+        {(avisoFalta || (asignacion?.estado === 'completado' && pendientes > 0)) && pendientes > 0 && (
+          <div className="mb-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-xl px-4 py-3">
+            <p className="font-bold">⚠️ Falta registrar lo que se le hizo a {client.nombre}</p>
+            <p className="text-sm">
+              Revisa el servicio y el diseño (ya vienen cargados con lo de la última vez) y pulsa "Confirmar".
+              Hasta entonces no se puede completar.
+            </p>
+          </div>
+        )}
+
+        {items.length > 0 && pendientes === 0 && (
+          <p className="mb-4 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
+            ✓ Todo registrado. Ya puedes volver y pulsar "Completar".
+          </p>
         )}
 
         {cargadoPorRecepcion && (

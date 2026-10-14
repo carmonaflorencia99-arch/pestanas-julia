@@ -3,12 +3,22 @@ import { supabase } from '../supabaseClient';
 import FichaTabletModal from './FichaTabletModal';
 import CajasProfesional from './inventario/CajasProfesional';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
+import { sinRegistro, registrosNecesarios } from '../lib/registros';
+import GuiaProfesional, { claveGuia } from './GuiaProfesional';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
+const haceDias = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+};
 
 export default function ColaProfesional({ currentStaff }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [activa, setActiva] = useState(null); // asignación abierta en la ficha
+  const [faltaId, setFaltaId] = useState(null); // asignación que se intentó completar sin registrar
+  const [pendientesRegistro, setPendientesRegistro] = useState([]); // atendidas sin registro (hoy y días anteriores)
+  const [mostrarGuia, setMostrarGuia] = useState(false);
   const [otras, setOtras] = useState([]); // asignaciones de hoy de las mismas clientas con otras profesionales
 
   const fetchAsignaciones = useCallback(async () => {
@@ -36,6 +46,51 @@ export default function ColaProfesional({ currentStaff }) {
     }
   }, [currentStaff.id]);
 
+  // Guía de uso: aparece la primera vez que se abre en esta tablet.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(claveGuia(currentStaff.id))) setMostrarGuia(true);
+    } catch (e) {
+      setMostrarGuia(true);
+    }
+  }, [currentStaff.id]);
+
+  const cerrarGuia = () => {
+    try {
+      localStorage.setItem(claveGuia(currentStaff.id), '1');
+    } catch (e) {
+      /* sin almacenamiento: simplemente se cierra */
+    }
+    setMostrarGuia(false);
+  };
+
+  // Citas atendidas (últimos 7 días) a las que aún les falta registrar lo realizado.
+  const fetchPendientesRegistro = useCallback(async () => {
+    const { data: citas } = await supabase
+      .from('asignaciones_dia')
+      .select('*, clients(*)')
+      .eq('staff_id', currentStaff.id)
+      .gte('fecha', haceDias(7))
+      .lte('fecha', hoy())
+      .in('estado', ['en_proceso', 'completado']);
+    if (!citas || citas.length === 0) {
+      setPendientesRegistro([]);
+      return;
+    }
+    const { data: records } = await supabase
+      .from('service_records')
+      .select('client_id, staff_id, fecha, es_extra')
+      .eq('staff_id', currentStaff.id)
+      .gte('fecha', `${haceDias(7)}T00:00:00`);
+    setPendientesRegistro(sinRegistro(citas, records || []));
+  }, [currentStaff.id]);
+
+  useEffect(() => {
+    fetchPendientesRegistro();
+    const t = setInterval(fetchPendientesRegistro, 60000);
+    return () => clearInterval(t);
+  }, [fetchPendientesRegistro]);
+
   useEffect(() => {
     fetchAsignaciones();
     // refresco automático cada 60s por si la secretaria agrega algo nuevo
@@ -44,6 +99,25 @@ export default function ColaProfesional({ currentStaff }) {
   }, [fetchAsignaciones]);
 
   const marcarEstado = async (id, estado) => {
+    if (estado === 'completado') {
+      // No se completa si falta registrar lo que se le hizo a la clienta.
+      const a = asignaciones.find((x) => x.id === id);
+      if (a && a.tipo !== 'descanso' && a.client_id) {
+        const { data: regs } = await supabase
+          .from('service_records')
+          .select('id')
+          .eq('client_id', a.client_id)
+          .eq('staff_id', currentStaff.id)
+          .eq('es_extra', false)
+          .gte('fecha', `${a.fecha}T00:00:00`)
+          .lt('fecha', `${a.fecha}T23:59:59.999`);
+        if ((regs || []).length < registrosNecesarios(a)) {
+          setFaltaId(a.id);
+          setActiva(a);
+          return;
+        }
+      }
+    }
     await supabase.from('asignaciones_dia').update({ estado }).eq('id', id);
     fetchAsignaciones();
   };
@@ -63,6 +137,40 @@ export default function ColaProfesional({ currentStaff }) {
     <div className="max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-1">Hola, {currentStaff.nombre} 👋</h2>
       <p className="text-gray-400 mb-8">Tu agenda de hoy</p>
+
+      <button
+        onClick={() => setMostrarGuia(true)}
+        className="mb-4 text-sm text-brand-700 font-semibold bg-brand-50 px-4 py-2 rounded-xl active:bg-brand-100"
+      >
+        ❓ Cómo funciona
+      </button>
+
+      {pendientesRegistro.length > 0 && (
+        <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-2xl p-4">
+          <p className="font-bold text-red-700 mb-2">
+            ⚠️ Falta registrar lo que se le hizo a {pendientesRegistro.length === 1 ? 'una clienta' : `${pendientesRegistro.length} clientas`}
+          </p>
+          <div className="space-y-2">
+            {pendientesRegistro.map((a) => (
+              <div key={a.id} className="flex justify-between items-center bg-white rounded-xl px-3 py-2">
+                <div>
+                  <p className="font-semibold text-gray-800">{a.clients?.nombre}</p>
+                  <p className="text-xs text-gray-400">{a.fecha === hoy() ? 'Hoy' : new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-ES')}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setFaltaId(a.id);
+                    setActiva(a);
+                  }}
+                  className="bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg active:bg-red-600"
+                >
+                  Registrar ahora
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <CajasProfesional currentStaff={currentStaff} />
 
@@ -176,14 +284,19 @@ export default function ColaProfesional({ currentStaff }) {
         )}
       </div>
 
+      {mostrarGuia && <GuiaProfesional onClose={cerrarGuia} />}
+
       {activa && (
         <FichaTabletModal
           client={activa.clients}
           asignacion={activa}
           currentStaff={currentStaff}
+          avisoFalta={faltaId === activa.id}
           onClose={() => {
             setActiva(null);
+            setFaltaId(null);
             fetchAsignaciones();
+            fetchPendientesRegistro();
           }}
         />
       )}
