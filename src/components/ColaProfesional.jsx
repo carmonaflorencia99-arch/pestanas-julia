@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import FichaTabletModal from './FichaTabletModal';
 import CajasProfesional from './inventario/CajasProfesional';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
-import { sinRegistro, registrosDe, registrosNecesarios } from '../lib/registros';
+import { sinRegistro, registrosDe, registrosNecesarios, necesitaRegistroManual } from '../lib/registros';
 import GuiaProfesional, { claveGuia } from './GuiaProfesional';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
@@ -13,6 +13,9 @@ const haceDias = (n) => {
   return d.toISOString().slice(0, 10);
 };
 
+// Citas de días anteriores ya guardadas automáticamente (para no repetirlo en esta sesión).
+const autoGuardadas = new Set();
+
 export default function ColaProfesional({ currentStaff }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [registrosHoy, setRegistrosHoy] = useState([]);
@@ -20,6 +23,39 @@ export default function ColaProfesional({ currentStaff }) {
   const [faltaId, setFaltaId] = useState(null); // asignación que se abrió desde el aviso de "falta registrar"
   const [pendientesRegistro, setPendientesRegistro] = useState([]); // atendidas sin registro (hoy y días anteriores)
   const [mostrarGuia, setMostrarGuia] = useState(false);
+  // Se puede ocultar el aviso de pendientes para hacerlos más tarde (reaparece solo a las 2 horas).
+  const claveOculto = `pendientes_ocultos_${currentStaff.id}`;
+  const leerOculto = () => {
+    try {
+      return Number(localStorage.getItem(claveOculto) || 0) > Date.now();
+    } catch (e) {
+      return false;
+    }
+  };
+  const [ocultos, setOcultos] = useState(leerOculto);
+  const ocultarPendientes = () => {
+    try {
+      localStorage.setItem(claveOculto, String(Date.now() + 2 * 60 * 60 * 1000));
+    } catch (e) {
+      /* sin almacenamiento: se oculta solo en esta sesión */
+    }
+    setOcultos(true);
+  };
+  const mostrarPendientes = () => {
+    try {
+      localStorage.removeItem(claveOculto);
+    } catch (e) {
+      /* nada */
+    }
+    setOcultos(false);
+  };
+  useEffect(() => {
+    // al pasar las 2 horas vuelve a aparecer solo
+    const t = setInterval(() => {
+      if (ocultos && !leerOculto()) setOcultos(false);
+    }, 60000);
+    return () => clearInterval(t);
+  }, [ocultos]); // eslint-disable-line react-hooks/exhaustive-deps
   const [otras, setOtras] = useState([]); // asignaciones de hoy de las mismas clientas con otras profesionales
 
   const fetchAsignaciones = useCallback(async () => {
@@ -90,7 +126,31 @@ export default function ColaProfesional({ currentStaff }) {
       .select('client_id, staff_id, fecha, es_extra')
       .eq('staff_id', currentStaff.id)
       .gte('fecha', `${haceDias(7)}T00:00:00`);
-    setPendientesRegistro(sinRegistro(citas, records || []));
+    const faltan = sinRegistro(citas, records || []);
+
+    // Citas de días anteriores que YA traen información (historial escrito): se guardan solas
+    // en su historial, sin pedirle nada a la profesional. Así nada queda vacío.
+    const auto = faltan.filter((a) => a.fecha < hoy() && !necesitaRegistroManual(a) && !autoGuardadas.has(a.id));
+    for (const a of auto) {
+      autoGuardadas.add(a.id);
+      const yaHay = registrosDe(a, records || []);
+      const filas = (a.servicios || []).slice(yaHay).map((sv) => ({
+        client_id: a.client_id,
+        staff_id: currentStaff.id,
+        categoria_servicio: sv.categoria_servicio,
+        subtipo_servicio: sv.subtipo_servicio,
+        historial_observaciones: sv.historial_observaciones || '',
+        fecha: `${a.fecha}T12:00:00`,
+      }));
+      if (filas.length > 0) {
+        const { error } = await supabase.from('service_records').insert(filas);
+        if (error) autoGuardadas.delete(a.id);
+        else await supabase.from('asignaciones_dia').update({ estado: 'completado' }).eq('id', a.id);
+      }
+    }
+
+    // Se le avisa solo de las que no tienen información (vacías o todavía "Puesta nueva").
+    setPendientesRegistro(faltan.filter((a) => necesitaRegistroManual(a)));
   }, [currentStaff.id]);
 
   useEffect(() => {
@@ -128,12 +188,30 @@ export default function ColaProfesional({ currentStaff }) {
         </button>
       </div>
 
-      {pendientesRegistro.length > 0 && (
+      {pendientesRegistro.length > 0 && ocultos && (
+        <button
+          onClick={mostrarPendientes}
+          className="mb-6 w-full text-left text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 active:bg-red-100"
+        >
+          ⚠️ {pendientesRegistro.length} registro{pendientesRegistro.length > 1 ? 's' : ''} pendiente
+          {pendientesRegistro.length > 1 ? 's' : ''} (ocultos) · Toca para verlos
+        </button>
+      )}
+
+      {pendientesRegistro.length > 0 && !ocultos && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-3xl p-5">
-          <p className="font-bold text-red-700 mb-3">
-            Falta registrar lo que se le hizo a{' '}
-            {pendientesRegistro.length === 1 ? 'una clienta' : `${pendientesRegistro.length} clientas`}
-          </p>
+          <div className="flex justify-between items-start gap-3 mb-3">
+            <p className="font-bold text-red-700">
+              Falta registrar lo que se le hizo a{' '}
+              {pendientesRegistro.length === 1 ? 'una clienta' : `${pendientesRegistro.length} clientas`}
+            </p>
+            <button
+              onClick={ocultarPendientes}
+              className="text-xs font-semibold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-full whitespace-nowrap active:bg-red-50"
+            >
+              Ocultar y hacerlo más tarde
+            </button>
+          </div>
           <div className="space-y-2">
             {pendientesRegistro.map((a) => (
               <div key={a.id} className="flex justify-between items-center bg-white rounded-2xl px-4 py-3">

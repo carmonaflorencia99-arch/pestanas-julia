@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
 import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA } from '../lib/servicios';
-import { sinRegistro } from '../lib/registros';
+import { sinRegistro, necesitaRegistroManual } from '../lib/registros';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
 
 const hoyStr = () => new Date().toISOString().slice(0, 10);
@@ -275,7 +275,11 @@ export default function AgendaDia({ currentStaff }) {
     const t = setInterval(fetchRegistrosDia, 60000);
     return () => clearInterval(t);
   }, [fetchRegistrosDia, asignaciones]);
-  const faltantesIds = new Set(sinRegistro(asignaciones, registrosDia).map((a) => a.id));
+  const faltantesIds = new Set(
+    sinRegistro(asignaciones, registrosDia)
+      .filter((a) => necesitaRegistroManual(a))
+      .map((a) => a.id)
+  );
 
   useEffect(() => {
     const timer = setTimeout(async () => {

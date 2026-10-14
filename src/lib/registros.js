@@ -1,3 +1,5 @@
+import { esExtensionPestanas, TEXTO_PUESTA_NUEVA } from './servicios';
+
 // Control de que lo que se le hizo a cada clienta quede SIEMPRE registrado.
 
 // Cuántos registros técnicos (no extras) debería tener una asignación.
@@ -25,3 +27,19 @@ export function sinRegistro(asignaciones, records) {
       registrosDe(a, records) < registrosNecesarios(a)
   );
 }
+
+// ¿El historial sigue vacío o diciendo "Puesta nueva"? (no hay información real todavía)
+export const sinInformacion = (texto) => {
+  const t = (texto || '').trim().toLowerCase();
+  return t === '' || t === TEXTO_PUESTA_NUEVA.toLowerCase();
+};
+
+// Una cita necesita que la profesional registre a mano solo si alguna de sus
+// extensiones de pestañas no tiene información (vacío o "Puesta nueva").
+// Si ya trae historial escrito, no hace falta pedirle nada.
+export const necesitaRegistroManual = (a) => {
+  const lista = Array.isArray(a.servicios) ? a.servicios : [];
+  return lista.some(
+    (sv) => esExtensionPestanas(sv.categoria_servicio, sv.subtipo_servicio) && sinInformacion(sv.historial_observaciones)
+  );
+};
