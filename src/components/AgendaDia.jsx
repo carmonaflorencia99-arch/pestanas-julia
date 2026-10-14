@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
-import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww } from '../lib/servicios';
+import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA } from '../lib/servicios';
 import { sinRegistro } from '../lib/registros';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
 
@@ -36,12 +36,9 @@ export default function AgendaDia({ currentStaff }) {
     staff_id: '',
     hora: '',
   });
-  const [servicioActual, setServicioActual] = useState({
-    categoria_servicio: '',
-    subtipo_servicio: '',
-    historial_observaciones: '',
-  });
-  const [servicios, setServicios] = useState([]); // lista de servicios agregados para esta asignación
+  // Servicios de esta asignación: cada uno es una tarjeta editable (categoría, servicio, historial).
+  const [servicios, setServicios] = useState([]);
+  const [primeraVez, setPrimeraVez] = useState(false); // primera vez de la clienta en extensiones
   const [editingId, setEditingId] = useState(null); // id de la asignación que se está editando
 
   // ----- Descanso -----
@@ -62,27 +59,50 @@ export default function AgendaDia({ currentStaff }) {
         grouped[s.categoria].push(s.subtipo);
       });
       setCatalogo(grouped);
-      const firstCat = Object.keys(grouped)[0];
-      if (firstCat) {
-        setServicioActual((f) =>
-          f.categoria_servicio ? f : { ...f, categoria_servicio: firstCat, subtipo_servicio: grouped[firstCat][0] }
-        );
-      }
     }
   }, []);
 
+  const servicioVacio = () => {
+    const firstCat = Object.keys(catalogo)[0];
+    return {
+      categoria_servicio: firstCat || '',
+      subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
+      historial_observaciones: '',
+    };
+  };
+
+  // Un servicio adicional suele ser de otra categoría (lifting, manicura...): se ofrece la primera que no sea extensiones.
   const agregarServicio = () => {
-    if (!servicioActual.categoria_servicio || !servicioActual.subtipo_servicio) return;
-    setServicios((s) => [...s, servicioActual]);
-    setServicioActual((f) => ({ ...f, historial_observaciones: '' }));
+    const cat = Object.keys(catalogo).find((c) => !esExtensionPestanas(c, catalogo[c][0])) || Object.keys(catalogo)[0];
+    setServicios((s) => [
+      ...s,
+      { categoria_servicio: cat || '', subtipo_servicio: cat ? catalogo[cat][0] : '', historial_observaciones: '' },
+    ]);
   };
 
   const quitarServicio = (index) => {
-    setServicios((s) => s.filter((_, i) => i !== index));
+    setServicios((s) => (s.length > 1 ? s.filter((_, i) => i !== index) : s));
+  };
+
+  const actualizarServicio = (index, cambios) => {
+    setServicios((prev) =>
+      prev.map((sv, i) => {
+        if (i !== index) return sv;
+        const nuevo = { ...sv, ...cambios };
+        // Primera vez haciéndose extensiones: el historial se completa solo.
+        if (
+          primeraVez &&
+          esExtensionPestanas(nuevo.categoria_servicio, nuevo.subtipo_servicio) &&
+          !(nuevo.historial_observaciones || '').trim()
+        ) {
+          nuevo.historial_observaciones = TEXTO_PUESTA_NUEVA;
+        }
+        return nuevo;
+      })
+    );
   };
 
   const [cargandoMapeo, setCargandoMapeo] = useState(false);
-  const [mapeoPrellenado, setMapeoPrellenado] = useState(false);
   const [servicioDetectado, setServicioDetectado] = useState(''); // texto: de dónde salió el servicio auto-cargado
   const [avisoParalelo, setAvisoParalelo] = useState('');
   const [profesionalAutoSeleccionada, setProfesionalAutoSeleccionada] = useState(false);
@@ -90,7 +110,6 @@ export default function AgendaDia({ currentStaff }) {
   const seleccionarClienta = async (c) => {
     setClientResults([]);
     setCargandoMapeo(true);
-    setMapeoPrellenado(false);
 
     // Traemos la profesional de preferencia y las notas generales de la
     // clienta (cargadas en su alta) para poder autocompletar.
@@ -143,20 +162,28 @@ export default function AgendaDia({ currentStaff }) {
       }
     }
 
-    const firstCat = Object.keys(catalogo)[0];
-    setServicioActual({
-      categoria_servicio: servicioAuto?.categoria_servicio || firstCat || '',
-      subtipo_servicio: servicioAuto?.subtipo_servicio || (firstCat ? catalogo[firstCat][0] : ''),
-      historial_observaciones: historial,
-    });
-    setMapeoPrellenado(!!historial);
+    // ¿Es su primera vez con extensiones? (sin extensiones en la app, ni en Flowww, ni notas de mapeo)
+    const { data: extPrevia } = await supabase
+      .from('service_records')
+      .select('id')
+      .eq('client_id', c.id)
+      .ilike('categoria_servicio', '%extens%')
+      .limit(1)
+      .maybeSingle();
+    const esPrimera =
+      !extPrevia &&
+      !/extensiones/i.test(clienteCompleto?.flowww_ultimo_servicio || '') &&
+      !(clienteCompleto?.notas_generales || '').trim();
+    setPrimeraVez(esPrimera);
 
     if (servicioAuto) {
-      // Queda ya agregado a la lista: solo falta elegir profesional y hora.
       setServicios([{ ...servicioAuto, historial_observaciones: historial }]);
       setServicioDetectado(`${servicioAuto.subtipo_servicio} (${origen})`);
+    } else if (esPrimera && servicioPuestaNueva(catalogo)) {
+      setServicios([{ ...servicioPuestaNueva(catalogo), historial_observaciones: TEXTO_PUESTA_NUEVA }]);
+      setServicioDetectado('Puesta nueva (primera vez en extensiones)');
     } else {
-      setServicios([]);
+      setServicios([{ ...servicioVacio(), historial_observaciones: historial }]);
       setServicioDetectado('');
     }
     setCargandoMapeo(false);
@@ -171,13 +198,17 @@ export default function AgendaDia({ currentStaff }) {
     setProfesionalAutoSeleccionada(!!nuevaClienta.profesional_habitual_id);
     setClientSearch('');
     setClientResults([]);
-    setMapeoPrellenado(false);
-    const firstCat = Object.keys(catalogo)[0];
-    setServicioActual({
-      categoria_servicio: firstCat || '',
-      subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
-      historial_observaciones: nuevaClienta.notas_generales || '',
-    });
+    // Clienta nueva: primera vez en extensiones → "Puesta nueva", salvo que ya traiga notas.
+    const notas = (nuevaClienta.notas_generales || '').trim();
+    setPrimeraVez(!notas);
+    const pn = servicioPuestaNueva(catalogo);
+    if (!notas && pn) {
+      setServicios([{ ...pn, historial_observaciones: TEXTO_PUESTA_NUEVA }]);
+      setServicioDetectado('Puesta nueva (primera vez en extensiones)');
+    } else {
+      setServicios([{ ...servicioVacio(), historial_observaciones: notas }]);
+      setServicioDetectado('');
+    }
   };
 
   const fetchProfesionales = useCallback(async () => {
@@ -259,24 +290,34 @@ export default function AgendaDia({ currentStaff }) {
   }, [clientSearch]);
 
   const resetFormularioCita = () => {
-    const firstCat = Object.keys(catalogo)[0];
     setForm({ client: null, staff_id: '', hora: '' });
     setServicios([]);
-    setServicioActual({
-      categoria_servicio: firstCat || '',
-      subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
-      historial_observaciones: '',
-    });
     setClientSearch('');
     setEditingId(null);
-    setMapeoPrellenado(false);
     setServicioDetectado('');
+    setPrimeraVez(false);
     setProfesionalAutoSeleccionada(false);
   };
 
+  // Qué falta para poder asignar (el botón se activa solo cuando no falta nada).
+  const faltaParaAsignar = [];
+  if (!form.client) faltaParaAsignar.push('clienta');
+  if (!form.staff_id) faltaParaAsignar.push('profesional');
+  if (!(form.hora || '').trim()) faltaParaAsignar.push('hora');
+  if (servicios.length === 0 || servicios.some((sv) => !sv.categoria_servicio || !sv.subtipo_servicio))
+    faltaParaAsignar.push('servicio');
+  if (
+    servicios.some(
+      (sv) =>
+        esExtensionPestanas(sv.categoria_servicio, sv.subtipo_servicio) && !(sv.historial_observaciones || '').trim()
+    )
+  )
+    faltaParaAsignar.push('historial');
+  const listoParaAsignar = faltaParaAsignar.length === 0;
+
   const handleAsignar = async (e) => {
     e.preventDefault();
-    if (!form.client || !form.staff_id || servicios.length === 0) return;
+    if (!listoParaAsignar) return;
 
     // ¿Tiene servicios en paralelo (mani/pedi) a la misma hora con otra profesional?
     const nueva = { id: editingId || 'nueva', client_id: form.client.id, staff_id: form.staff_id, hora: form.hora, servicios, tipo: 'cita' };
@@ -336,8 +377,9 @@ export default function AgendaDia({ currentStaff }) {
   const iniciarEdicion = (a) => {
     setEditingId(a.id);
     setForm({ client: a.clients ? { id: a.client_id, nombre: a.clients.nombre } : null, staff_id: a.staff_id, hora: a.hora || '' });
-    setServicios(a.servicios || []);
-    setMapeoPrellenado(false);
+    setServicios(a.servicios && a.servicios.length > 0 ? a.servicios : [servicioVacio()]);
+    setServicioDetectado('');
+    setPrimeraVez(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -540,9 +582,9 @@ export default function AgendaDia({ currentStaff }) {
             )}
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1">HORA (opcional)</label>
+            <label className="text-xs font-semibold block mb-1">HORA</label>
             <input
-              placeholder="Ej: 16:30"
+              type="time"
               value={form.hora}
               onChange={(e) => setForm({ ...form, hora: e.target.value })}
               className="w-full p-2 border rounded-lg text-sm bg-white"
@@ -550,105 +592,104 @@ export default function AgendaDia({ currentStaff }) {
           </div>
         </div>
 
-        {Object.keys(catalogo).length > 0 && (
-          <div className="border-t pt-3 space-y-3">
-            <label className="text-xs font-semibold block">SERVICIOS DE ESTA VISITA</label>
+        {form.client && Object.keys(catalogo).length > 0 && (
+          <div className="bg-white/70 border border-brand-100 rounded-2xl p-3 space-y-3">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-semibold">SERVICIOS DE ESTA VISITA</label>
+              {cargandoMapeo && <span className="text-xs text-gray-400">Cargando historial...</span>}
+            </div>
 
             {servicioDetectado && (
-              <p className="text-xs bg-brand-50 text-brand-700 font-medium px-2 py-1.5 rounded-lg">
-                ✨ Servicio cargado automáticamente: {servicioDetectado}. Si no es ese, quítalo y elige otro.
+              <p className="text-xs bg-brand-50 text-brand-700 font-medium px-3 py-2 rounded-xl">
+                ✨ Cargado automáticamente: {servicioDetectado}. Puedes cambiarlo.
               </p>
             )}
 
-            {mapeoPrellenado && (
-              <p className="text-xs bg-blush-50 text-blush-600 font-medium px-2 py-1.5 rounded-lg inline-block">
-                💡 Prellenado con su último mapeo registrado — podés ajustarlo antes de agregar
-              </p>
-            )}
-
-            {servicios.length > 0 && (
-              <div className="space-y-1.5">
-                {servicios.map((s, i) => (
-                  <div key={i} className="flex justify-between items-center bg-white p-2 rounded-lg border text-sm">
-                    <div>
-                      <span className="font-semibold">{s.categoria_servicio}</span>
-                      <span className="text-gray-400"> — {s.subtipo_servicio}</span>
-                      {s.historial_observaciones && (
-                        <p className="text-xs text-gray-400">{s.historial_observaciones}</p>
-                      )}
+            {servicios.map((sv, i) => {
+              const esExt = esExtensionPestanas(sv.categoria_servicio, sv.subtipo_servicio);
+              return (
+                <div key={i} className="bg-white border border-gray-100 rounded-xl p-3 space-y-3 shadow-sm">
+                  {servicios.length > 1 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-semibold text-gray-400">Servicio {i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => quitarServicio(i)}
+                        className="text-xs text-red-400 hover:text-red-600"
+                      >
+                        Quitar
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => quitarServicio(i)}
-                      className="text-xs text-red-400 hover:text-red-600 ml-2"
-                    >
-                      Quitar
-                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">CATEGORÍA</label>
+                      <select
+                        value={sv.categoria_servicio}
+                        onChange={(e) => {
+                          const cat = e.target.value;
+                          actualizarServicio(i, { categoria_servicio: cat, subtipo_servicio: catalogo[cat][0] });
+                        }}
+                        className="w-full p-2 border rounded-lg text-sm bg-white"
+                      >
+                        {Object.keys(catalogo).map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold block mb-1">SERVICIO</label>
+                      <select
+                        value={sv.subtipo_servicio}
+                        onChange={(e) => actualizarServicio(i, { subtipo_servicio: e.target.value })}
+                        className="w-full p-2 border rounded-lg text-sm bg-white"
+                      >
+                        {(catalogo[sv.categoria_servicio] || []).map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div>
+                    <label className="text-xs font-semibold block mb-1">
+                      HISTORIAL / MAPEO {esExt ? <span className="text-blush-500">(obligatorio)</span> : '(opcional)'}
+                    </label>
+                    <textarea
+                      rows="2"
+                      placeholder="Mapeo, diseño, lo acordado con la clienta..."
+                      value={sv.historial_observaciones || ''}
+                      onChange={(e) => actualizarServicio(i, { historial_observaciones: e.target.value })}
+                      className="w-full p-2 border rounded-lg text-sm bg-white"
+                    />
+                  </div>
+                </div>
+              );
+            })}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold block mb-1">CATEGORÍA SERVICIO</label>
-                <select
-                  value={servicioActual.categoria_servicio}
-                  onChange={(e) => {
-                    const cat = e.target.value;
-                    setServicioActual({ ...servicioActual, categoria_servicio: cat, subtipo_servicio: catalogo[cat][0] });
-                  }}
-                  className="w-full p-2 border rounded-lg text-sm bg-white"
-                >
-                  {Object.keys(catalogo).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold block mb-1">SERVICIO ESPECÍFICO</label>
-                <select
-                  value={servicioActual.subtipo_servicio}
-                  onChange={(e) => setServicioActual({ ...servicioActual, subtipo_servicio: e.target.value })}
-                  className="w-full p-2 border rounded-lg text-sm bg-white"
-                >
-                  {(catalogo[servicioActual.categoria_servicio] || []).map((sub) => (
-                    <option key={sub} value={sub}>
-                      {sub}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold block mb-1">MAPEO / OBSERVACIONES (opcional)</label>
-              <textarea
-                rows="2"
-                placeholder="Lo que dicte la profesional o quede acordado con la clienta..."
-                value={servicioActual.historial_observaciones}
-                onChange={(e) => setServicioActual({ ...servicioActual, historial_observaciones: e.target.value })}
-                className="w-full p-2 border rounded-lg text-sm bg-white"
-              />
-            </div>
             <button
               type="button"
               onClick={agregarServicio}
-              className="w-full border-2 border-dashed border-brand-300 text-brand-600 text-sm font-semibold py-2 rounded-lg hover:bg-brand-50"
+              className="w-full border-2 border-dashed border-brand-300 text-brand-600 text-sm font-semibold py-2 rounded-xl hover:bg-brand-50"
             >
-              + Agregar servicio a la lista
+              + Agregar otro servicio a esta clienta
             </button>
           </div>
         )}
 
         <button
           type="submit"
-          disabled={!form.client || !form.staff_id || servicios.length === 0}
-          className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
+          disabled={!listoParaAsignar}
+          className="w-full bg-brand-600 text-white py-3 rounded-xl text-sm font-semibold disabled:opacity-40"
         >
           {editingId ? 'Guardar cambios' : 'Asignar'}
         </button>
+        {form.client && !listoParaAsignar && (
+          <p className="text-xs text-gray-400 text-center -mt-1">Falta: {faltaParaAsignar.join(', ')}</p>
+        )}
       </form>
 
       {/* Descanso */}

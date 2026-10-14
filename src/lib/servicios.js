@@ -119,3 +119,21 @@ export function servicioDesdeFlowww(catalogo, zona) {
     return buscarEnCatalogo(catalogo, /manicur/, [/semiperm/.test(t) ? /semiperm/ : /tradicion/, /manicura/]);
   return null;
 }
+
+// ¿Es un servicio de extensiones de pestañas? (el único que exige historial/diseño)
+export function esExtensionPestanas(categoria, subtipo) {
+  const t = quitarAcentos(`${categoria || ''} ${subtipo || ''}`).toLowerCase();
+  return t.includes('extens') && t.includes('pesta');
+}
+
+// Servicio de extensiones "nuevo" (no reposición) para una clienta que se hace extensiones por primera vez.
+export function servicioPuestaNueva(catalogo) {
+  const cat = Object.keys(catalogo).find(
+    (c) => /extens/.test(quitarAcentos(c).toLowerCase()) && /pesta/.test(quitarAcentos(c).toLowerCase())
+  );
+  if (!cat || !catalogo[cat].length) return null;
+  const sub = catalogo[cat].find((x) => !esReposicion(x)) || catalogo[cat][0];
+  return { categoria_servicio: cat, subtipo_servicio: sub };
+}
+
+export const TEXTO_PUESTA_NUEVA = 'Puesta nueva';
