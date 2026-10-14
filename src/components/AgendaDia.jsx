@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
+import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde } from '../lib/servicios';
+import { paralelosDe, resumenServicios } from '../lib/paralelos';
 
 const hoyStr = () => new Date().toISOString().slice(0, 10);
 const mananaStr = () => {
@@ -80,6 +82,8 @@ export default function AgendaDia({ currentStaff }) {
 
   const [cargandoMapeo, setCargandoMapeo] = useState(false);
   const [mapeoPrellenado, setMapeoPrellenado] = useState(false);
+  const [servicioDetectado, setServicioDetectado] = useState(''); // texto: de dónde salió el servicio auto-cargado
+  const [avisoParalelo, setAvisoParalelo] = useState('');
   const [profesionalAutoSeleccionada, setProfesionalAutoSeleccionada] = useState(false);
 
   const seleccionarClienta = async (c) => {
@@ -111,23 +115,41 @@ export default function AgendaDia({ currentStaff }) {
       .limit(1)
       .maybeSingle();
 
-    if (data) {
-      // Ya vino antes: se prellena con lo de su última visita real.
-      setServicioActual({
-        categoria_servicio: data.categoria_servicio,
-        subtipo_servicio: data.subtipo_servicio,
-        historial_observaciones: data.historial_observaciones || '',
-      });
-      setMapeoPrellenado(true);
+    // Diseño / historial: lo de su última visita; si no hay, sus notas generales
+    // (por ejemplo las que vinieron de Flowww).
+    const historial = (data?.historial_observaciones || '').trim() || clienteCompleto?.notas_generales || '';
+
+    // Servicio: 1) el de su última visita (en extensiones, su reposición),
+    // 2) si no hay, se deduce del historial (mtc/bpc/0.25 → clásicas, 2D / V0.20 → 2D,
+    // 3D-4D → volumen, 10D → mega).
+    let servicioAuto = null;
+    let origen = '';
+    if (data && data.categoria_servicio && data.subtipo_servicio) {
+      servicioAuto = proximoServicioDesde(catalogo, data.categoria_servicio, data.subtipo_servicio);
+      origen = 'según su última visita';
     } else {
-      // Primera vez: si tiene notas generales cargadas en el alta, se usan
-      // como punto de partida para las observaciones.
-      const firstCat = Object.keys(catalogo)[0];
-      setServicioActual({
-        categoria_servicio: firstCat || '',
-        subtipo_servicio: firstCat ? catalogo[firstCat][0] : '',
-        historial_observaciones: clienteCompleto?.notas_generales || '',
-      });
+      const tipo = inferirTipoExtension(historial);
+      if (tipo) {
+        servicioAuto = buscarServicioExtension(catalogo, tipo, true);
+        origen = 'deducido de su historial';
+      }
+    }
+
+    const firstCat = Object.keys(catalogo)[0];
+    setServicioActual({
+      categoria_servicio: servicioAuto?.categoria_servicio || firstCat || '',
+      subtipo_servicio: servicioAuto?.subtipo_servicio || (firstCat ? catalogo[firstCat][0] : ''),
+      historial_observaciones: historial,
+    });
+    setMapeoPrellenado(!!historial);
+
+    if (servicioAuto) {
+      // Queda ya agregado a la lista: solo falta elegir profesional y hora.
+      setServicios([{ ...servicioAuto, historial_observaciones: historial }]);
+      setServicioDetectado(`${servicioAuto.subtipo_servicio} (${origen})`);
+    } else {
+      setServicios([]);
+      setServicioDetectado('');
     }
     setCargandoMapeo(false);
   };
@@ -223,12 +245,25 @@ export default function AgendaDia({ currentStaff }) {
     setClientSearch('');
     setEditingId(null);
     setMapeoPrellenado(false);
+    setServicioDetectado('');
     setProfesionalAutoSeleccionada(false);
   };
 
   const handleAsignar = async (e) => {
     e.preventDefault();
     if (!form.client || !form.staff_id || servicios.length === 0) return;
+
+    // ¿Tiene servicios en paralelo (mani/pedi) a la misma hora con otra profesional?
+    const nueva = { id: editingId || 'nueva', client_id: form.client.id, staff_id: form.staff_id, hora: form.hora, servicios, tipo: 'cita' };
+    const enParalelo = paralelosDe(nueva, asignaciones);
+    const avisar = () => {
+      if (enParalelo.length === 0) return;
+      const nombreProf = (id) => profesionales.find((p) => p.id === id)?.nombre || '';
+      const nombres = [nombreProf(form.staff_id), ...enParalelo.map((b) => b.staff?.nombre || nombreProf(b.staff_id))]
+        .filter(Boolean)
+        .join(' y ');
+      setAvisoParalelo(`🔗 ${form.client.nombre} tiene servicios en paralelo a las ${form.hora}. Se avisa en la tablet de ${nombres}.`);
+    };
 
     if (editingId) {
       // Editando una asignación existente: no se cambia la clienta, solo
@@ -243,6 +278,7 @@ export default function AgendaDia({ currentStaff }) {
         .eq('id', editingId);
 
       if (!error) {
+        avisar();
         resetFormularioCita();
         fetchAsignaciones();
       } else {
@@ -264,6 +300,7 @@ export default function AgendaDia({ currentStaff }) {
     ]);
 
     if (!error) {
+      avisar();
       resetFormularioCita();
       fetchAsignaciones();
     } else {
@@ -492,6 +529,12 @@ export default function AgendaDia({ currentStaff }) {
           <div className="border-t pt-3 space-y-3">
             <label className="text-xs font-semibold block">SERVICIOS DE ESTA VISITA</label>
 
+            {servicioDetectado && (
+              <p className="text-xs bg-brand-50 text-brand-700 font-medium px-2 py-1.5 rounded-lg">
+                ✨ Servicio cargado automáticamente: {servicioDetectado}. Si no es ese, quítalo y elige otro.
+              </p>
+            )}
+
             {mapeoPrellenado && (
               <p className="text-xs bg-blush-50 text-blush-600 font-medium px-2 py-1.5 rounded-lg inline-block">
                 💡 Prellenado con su último mapeo registrado — podés ajustarlo antes de agregar
@@ -656,6 +699,15 @@ export default function AgendaDia({ currentStaff }) {
         )}
       </div>
 
+      {avisoParalelo && (
+        <div className="mb-4 bg-blush-50 border-2 border-blush-200 text-blush-700 text-sm font-medium rounded-xl p-3 flex justify-between items-start gap-2">
+          <span>{avisoParalelo}</span>
+          <button type="button" onClick={() => setAvisoParalelo('')} className="text-xs text-gray-400 hover:text-gray-600">
+            Cerrar
+          </button>
+        </div>
+      )}
+
       <h3 className="text-sm font-semibold text-gray-700 mb-3">Cola de {etiquetaFecha(fechaAgenda)}</h3>
       <div className="space-y-2">
         {asignaciones.length === 0 && <p className="text-xs text-gray-400">Todavía no hay asignaciones para esta fecha.</p>}
@@ -704,6 +756,11 @@ export default function AgendaDia({ currentStaff }) {
                   </button>
                 </div>
               </div>
+              {paralelosDe(a, asignaciones).map((b) => (
+                <p key={b.id} className="mt-2 text-xs bg-blush-50 text-blush-700 font-semibold px-2 py-1.5 rounded-lg">
+                  🔗 En paralelo con {b.staff?.nombre}: {resumenServicios(b)}
+                </p>
+              ))}
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={() => toggleCampo(a.id, 'llego', a.llego)}

@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import FichaTabletModal from './FichaTabletModal';
 import CajasProfesional from './inventario/CajasProfesional';
+import { paralelosDe, resumenServicios } from '../lib/paralelos';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 
 export default function ColaProfesional({ currentStaff }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [activa, setActiva] = useState(null); // asignación abierta en la ficha
+  const [otras, setOtras] = useState([]); // asignaciones de hoy de las mismas clientas con otras profesionales
 
   const fetchAsignaciones = useCallback(async () => {
     const { data } = await supabase
@@ -16,7 +18,22 @@ export default function ColaProfesional({ currentStaff }) {
       .eq('fecha', hoy())
       .eq('staff_id', currentStaff.id)
       .order('hora');
-    if (data) setAsignaciones(data);
+    if (data) {
+      setAsignaciones(data);
+      // Servicios en paralelo: la misma clienta, a la misma hora, con otra profesional.
+      const ids = [...new Set(data.filter((a) => a.tipo !== 'descanso' && a.client_id).map((a) => a.client_id))];
+      if (ids.length > 0) {
+        const { data: resto } = await supabase
+          .from('asignaciones_dia')
+          .select('id, client_id, staff_id, hora, tipo, servicios, staff:staff_id(nombre)')
+          .eq('fecha', hoy())
+          .in('client_id', ids)
+          .neq('staff_id', currentStaff.id);
+        setOtras(resto || []);
+      } else {
+        setOtras([]);
+      }
+    }
   }, [currentStaff.id]);
 
   useEffect(() => {
@@ -101,6 +118,15 @@ export default function ColaProfesional({ currentStaff }) {
                 </span>
               )}
             </div>
+
+            {paralelosDe(a, otras).map((b) => (
+              <div key={b.id} className="mb-4 bg-pink-50 border-2 border-pink-200 text-pink-700 rounded-xl px-4 py-3">
+                <p className="font-bold text-sm">🔗 Servicio en paralelo a la misma hora</p>
+                <p className="text-sm">
+                  {b.staff?.nombre} la atiende a la vez: {resumenServicios(b)}. Coordinen para no hacerla esperar.
+                </p>
+              </div>
+            ))}
 
             <div className="flex gap-3">
               <button
