@@ -32,7 +32,7 @@ const PASOS = [
     icono: '🏁',
     titulo: 'Y listo',
     texto:
-      'Cuando confirmas lo que le hiciste, la clienta pasa sola a "Atendidas hoy". No hace falta marcar nada más. Lo que la clienta se hizo tiene que quedar siempre guardado: si se te olvida, verás un aviso rojo en tu agenda hasta que lo registres.',
+      'Cuando confirmas lo que le hiciste, la clienta pasa sola a "Atendidas hoy". No hace falta marcar nada más. Lo que la clienta se hizo tiene que quedar siempre guardado: si se te olvida, verás un aviso rojo en tu agenda. Puedes ocultarlo para hacerlo más tarde (vuelve a aparecer solo a las 2 horas) o quitar a una clienta de la lista si no vino.',
   },
   {
     icono: '🔗',

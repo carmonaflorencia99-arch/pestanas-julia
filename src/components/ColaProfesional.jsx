@@ -166,6 +166,17 @@ export default function ColaProfesional({ currentStaff }) {
     return () => clearInterval(interval);
   }, [fetchAsignaciones]);
 
+  // Quitar una clienta de la lista de pendientes (no vino / no se le hizo nada): vuelve a "aún no llega".
+  const quitarPendiente = async (a) => {
+    const seguro = window.confirm(
+      `¿${a.clients?.nombre} no vino o no se le hizo nada? Se quitará de la lista de pendientes y no quedará nada registrado.`
+    );
+    if (!seguro) return;
+    await supabase.from('asignaciones_dia').update({ llego: false, estado: 'pendiente' }).eq('id', a.id);
+    fetchPendientesRegistro();
+    fetchAsignaciones();
+  };
+
   const citas = asignaciones.filter((a) => a.tipo !== 'descanso');
   const descansos = asignaciones.filter((a) => a.tipo === 'descanso');
   // Una clienta pasa sola a "Atendidas" cuando ya se confirmó todo lo que se le hizo.
@@ -221,15 +232,23 @@ export default function ColaProfesional({ currentStaff }) {
                     {a.fecha === hoy() ? 'Hoy' : new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-ES')}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setFaltaId(a.id);
-                    setActiva(a);
-                  }}
-                  className="bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-full active:bg-red-600"
-                >
-                  Registrar ahora
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => quitarPendiente(a)}
+                    className="text-xs font-semibold text-gray-400 px-3 py-2 rounded-full active:bg-gray-100"
+                  >
+                    Quitar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFaltaId(a.id);
+                      setActiva(a);
+                    }}
+                    className="bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-full active:bg-red-600"
+                  >
+                    Registrar ahora
+                  </button>
+                </div>
               </div>
             ))}
           </div>
