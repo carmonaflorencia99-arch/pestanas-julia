@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
-import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA } from '../lib/servicios';
+import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA, TEXTO_PENDIENTE } from '../lib/servicios';
 import { sinRegistro, necesitaRegistroManual } from '../lib/registros';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
 
@@ -126,18 +126,24 @@ export default function AgendaDia({ currentStaff }) {
     }));
     setProfesionalAutoSeleccionada(!!clienteCompleto?.profesional_habitual_id);
 
-    const { data } = await supabase
+    const { data: ultimos } = await supabase
       .from('service_records')
       .select('categoria_servicio, subtipo_servicio, historial_observaciones')
       .eq('client_id', c.id)
       .eq('es_extra', false)
       .order('fecha', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(8);
 
-    // Diseño / historial: lo de su última visita; si no hay, sus notas generales
+    // Las visitas marcadas "Pendiente de cargar historial" no aportan información: se usa la
+    // última visita con historial real (el servicio sí se toma de la visita más reciente).
+    const lista = ultimos || [];
+    const conInfo = lista.find((r) => (r.historial_observaciones || '').trim() && r.historial_observaciones.trim() !== TEXTO_PENDIENTE);
+    const data = conInfo || lista[0] || null;
+    const textoReal = conInfo ? conInfo.historial_observaciones : '';
+
+    // Diseño / historial: lo de su última visita con información; si no hay, sus notas generales
     // (por ejemplo las que vinieron de Flowww).
-    const historial = (data?.historial_observaciones || '').trim() || clienteCompleto?.notas_generales || '';
+    const historial = (textoReal || '').trim() || clienteCompleto?.notas_generales || '';
 
     // Servicio: 1) el de su última visita (en extensiones, su reposición),
     // 2) si no hay, se deduce del historial (mtc/bpc/0.25 → clásicas, 2D / V0.20 → 2D,
@@ -235,6 +241,21 @@ export default function AgendaDia({ currentStaff }) {
       .order('fecha', { ascending: false });
     if (data) setExtras(data);
   }, []);
+
+  // Visitas que la profesional no recordó: quedan "Pendiente de cargar historial" para completarlas.
+  const [pendientesHistorial, setPendientesHistorial] = useState([]);
+  const fetchPendientesHistorial = useCallback(async () => {
+    const { data } = await supabase
+      .from('service_records')
+      .select('id, fecha, categoria_servicio, subtipo_servicio, clients(nombre), staff:staff_id(nombre)')
+      .eq('historial_observaciones', TEXTO_PENDIENTE)
+      .order('fecha', { ascending: false })
+      .limit(30);
+    setPendientesHistorial(data || []);
+  }, []);
+  useEffect(() => {
+    fetchPendientesHistorial();
+  }, [fetchPendientesHistorial, asignaciones]);
 
   const marcarExtraRevisado = async (id) => {
     await supabase.from('service_records').update({ revisado: true }).eq('id', id);
@@ -489,6 +510,30 @@ export default function AgendaDia({ currentStaff }) {
                 >
                   Ya lo cargué ✓
                 </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pendientesHistorial.length > 0 && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
+          <h3 className="text-sm font-bold text-red-700 mb-1">
+            📝 Pendiente de cargar historial ({pendientesHistorial.length})
+          </h3>
+          <p className="text-xs text-red-500 mb-3">
+            La profesional no recordó qué se le hizo. Complétalo desde Fichas → la clienta → Editar en ese registro.
+          </p>
+          <div className="space-y-1.5">
+            {pendientesHistorial.map((r) => (
+              <div key={r.id} className="bg-white rounded-xl px-3 py-2 text-sm flex justify-between gap-2">
+                <span>
+                  <span className="font-semibold">{r.clients?.nombre}</span>{' '}
+                  <span className="text-gray-400">— {r.subtipo_servicio}</span>
+                </span>
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {new Date(r.fecha).toLocaleDateString('es-ES')} · {r.staff?.nombre}
+                </span>
               </div>
             ))}
           </div>

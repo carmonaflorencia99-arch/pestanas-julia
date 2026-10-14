@@ -358,10 +358,16 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
             <p className="font-bold text-ink">
               {rec.categoria_servicio}: <span className="font-normal">{rec.subtipo_servicio}</span>
             </p>
-            {rec.historial_observaciones && (
-              <p className="mt-2 text-xs bg-white p-2 rounded border border-gray-200 text-gray-700">
-                <strong>Observaciones:</strong> {rec.historial_observaciones}
+            {rec.historial_observaciones === 'Pendiente de cargar historial' ? (
+              <p className="mt-2 text-xs bg-red-50 p-2 rounded border border-red-200 text-red-600 font-semibold">
+                📝 Pendiente de cargar historial — usa "Editar" para completarlo
               </p>
+            ) : (
+              rec.historial_observaciones && (
+                <p className="mt-2 text-xs bg-white p-2 rounded border border-gray-200 text-gray-700">
+                  <strong>Observaciones:</strong> {rec.historial_observaciones}
+                </p>
+              )
             )}
             {puedeEditarRegistro(rec) && (
               <div className="flex gap-3 mt-2">

@@ -137,3 +137,5 @@ export function servicioPuestaNueva(catalogo) {
 }
 
 export const TEXTO_PUESTA_NUEVA = 'Puesta nueva';
+// Marca que queda en el historial cuando la profesional no recuerda qué se le hizo: se completa después.
+export const TEXTO_PENDIENTE = 'Pendiente de cargar historial';

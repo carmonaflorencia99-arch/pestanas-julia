@@ -1,4 +1,4 @@
-import { esExtensionPestanas, TEXTO_PUESTA_NUEVA } from './servicios';
+import { esExtensionPestanas, TEXTO_PUESTA_NUEVA, TEXTO_PENDIENTE } from './servicios';
 
 // Control de que lo que se le hizo a cada clienta quede SIEMPRE registrado.
 
@@ -31,7 +31,7 @@ export function sinRegistro(asignaciones, records) {
 // ¿El historial sigue vacío o diciendo "Puesta nueva"? (no hay información real todavía)
 export const sinInformacion = (texto) => {
   const t = (texto || '').trim().toLowerCase();
-  return t === '' || t === TEXTO_PUESTA_NUEVA.toLowerCase();
+  return t === '' || t === TEXTO_PUESTA_NUEVA.toLowerCase() || t === TEXTO_PENDIENTE.toLowerCase();
 };
 
 // Una cita necesita que la profesional registre a mano solo si alguna de sus

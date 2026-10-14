@@ -5,6 +5,7 @@ import CajasProfesional from './inventario/CajasProfesional';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
 import { sinRegistro, registrosDe, registrosNecesarios, necesitaRegistroManual } from '../lib/registros';
 import GuiaProfesional, { claveGuia } from './GuiaProfesional';
+import { TEXTO_PENDIENTE } from '../lib/servicios';
 
 const hoy = () => new Date().toISOString().slice(0, 10);
 const haceDias = (n) => {
@@ -166,10 +167,46 @@ export default function ColaProfesional({ currentStaff }) {
     return () => clearInterval(interval);
   }, [fetchAsignaciones]);
 
-  // Quitar una clienta de la lista de pendientes (no vino / no se le hizo nada): vuelve a "aún no llega".
+  // "No recuerdo qué se le hizo": sale de la lista pero queda en el historial de la clienta
+  // como "Pendiente de cargar historial", para que se complete después (por recepción o por ella).
+  const dejarPendiente = async (a) => {
+    const seguro = window.confirm(
+      `Quedará en el historial de ${a.clients?.nombre} como "${TEXTO_PENDIENTE}" para completarlo más tarde. ¿Continuar?`
+    );
+    if (!seguro) return;
+    const { data: regs } = await supabase
+      .from('service_records')
+      .select('client_id, staff_id, fecha, es_extra')
+      .eq('client_id', a.client_id)
+      .eq('staff_id', currentStaff.id)
+      .gte('fecha', `${a.fecha}T00:00:00`)
+      .lt('fecha', `${a.fecha}T23:59:59.999`);
+    const yaHay = registrosDe(a, regs || []);
+    const lista = (a.servicios || []).length > 0 ? a.servicios : [{ categoria_servicio: 'Servicio', subtipo_servicio: 'Sin especificar' }];
+    const filas = lista.slice(yaHay).map((sv) => ({
+      client_id: a.client_id,
+      staff_id: currentStaff.id,
+      categoria_servicio: sv.categoria_servicio,
+      subtipo_servicio: sv.subtipo_servicio,
+      historial_observaciones: TEXTO_PENDIENTE,
+      ...(a.fecha < hoy() ? { fecha: `${a.fecha}T12:00:00` } : {}),
+    }));
+    if (filas.length > 0) {
+      const { error } = await supabase.from('service_records').insert(filas);
+      if (error) {
+        alert('No se pudo dejar pendiente. Inténtalo de nuevo.');
+        return;
+      }
+    }
+    await supabase.from('asignaciones_dia').update({ estado: 'completado' }).eq('id', a.id);
+    fetchPendientesRegistro();
+    fetchAsignaciones();
+  };
+
+  // Quitar una clienta de la lista de pendientes porque no vino: vuelve a "aún no llega".
   const quitarPendiente = async (a) => {
     const seguro = window.confirm(
-      `¿${a.clients?.nombre} no vino o no se le hizo nada? Se quitará de la lista de pendientes y no quedará nada registrado.`
+      `¿${a.clients?.nombre} no vino? Se quitará de la lista y no quedará nada registrado.`
     );
     if (!seguro) return;
     await supabase.from('asignaciones_dia').update({ llego: false, estado: 'pendiente' }).eq('id', a.id);
@@ -232,12 +269,18 @@ export default function ColaProfesional({ currentStaff }) {
                     {a.fecha === hoy() ? 'Hoy' : new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-ES')}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     onClick={() => quitarPendiente(a)}
                     className="text-xs font-semibold text-gray-400 px-3 py-2 rounded-full active:bg-gray-100"
                   >
-                    Quitar
+                    No vino
+                  </button>
+                  <button
+                    onClick={() => dejarPendiente(a)}
+                    className="text-xs font-semibold text-red-500 bg-red-50 px-3 py-2 rounded-full active:bg-red-100"
+                  >
+                    No lo recuerdo
                   </button>
                   <button
                     onClick={() => {
