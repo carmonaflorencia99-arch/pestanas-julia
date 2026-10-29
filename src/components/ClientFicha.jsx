@@ -10,7 +10,6 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   const [editingId, setEditingId] = useState(null);
   const [showEditClient, setShowEditClient] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const puedeEditarClienta = currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria';
@@ -151,15 +150,6 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   const puedeEditarRegistro = (rec) =>
     currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria' || rec.staff_id === currentStaff.id;
 
-  // Para borrar basta escribir "borrar" (sin importar mayúsculas, tildes ni espacios).
-  const normaliza = (t) =>
-    (t || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim();
-  const confirmacionOk = normaliza(confirmText) === 'borrar';
-
   // Guarda un dato de la clienta directamente desde la ficha.
   const guardarCampo = async (campo, valor) => {
     const { data, error } = await supabase
@@ -191,7 +181,6 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   };
 
   const handleDeleteClient = async () => {
-    if (!confirmacionOk) return;
     setDeleting(true);
     const { error } = await supabase.from('clients').delete().eq('id', client.id);
     setDeleting(false);
@@ -296,20 +285,12 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
             <h3 className="font-bold text-red-600 mb-2">Borrar a {client.nombre}</h3>
             <p className="text-xs text-gray-500 mb-4">
               Esto borra <strong>todo su historial de servicios y asignaciones para siempre</strong>. No se puede deshacer.{' '}
-              {records.length > 0 && <> Tiene <strong>{records.length}</strong> servicio{records.length > 1 ? 's' : ''} registrado{records.length > 1 ? 's' : ''}. </>}Para confirmar, escribe la palabra <strong>borrar</strong>.
+              {records.length > 0 && <> Tiene <strong>{records.length}</strong> servicio{records.length > 1 ? 's' : ''} registrado{records.length > 1 ? 's' : ''}. </>}¿Seguro que quieres borrarla?
             </p>
-            <input
-              autoFocus
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="borrar"
-              className="w-full p-2 border rounded-lg text-sm mb-4"
-            />
             <div className="flex gap-2">
               <button
                 onClick={() => {
                   setShowDeleteConfirm(false);
-                  setConfirmText('');
                 }}
                 className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-lg text-sm font-medium"
               >
@@ -317,7 +298,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
               </button>
               <button
                 onClick={handleDeleteClient}
-                disabled={!confirmacionOk || deleting}
+                disabled={deleting}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
               >
                 {deleting ? 'Borrando...' : 'Borrar definitivamente'}
