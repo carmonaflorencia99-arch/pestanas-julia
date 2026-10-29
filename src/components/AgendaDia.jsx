@@ -46,7 +46,7 @@ export default function AgendaDia({ currentStaff }) {
 
   // ----- Descanso -----
   const [mostrarDescanso, setMostrarDescanso] = useState(false);
-  const [descansoForm, setDescansoForm] = useState({ staff_id: '', hora: '', hora_fin: '', nota: '' });
+  const [descansoForm, setDescansoForm] = useState({ staff_id: '', hora: '', hora_fin: '', duracion: 60, nota: '' });
   const [savingDescanso, setSavingDescanso] = useState(false);
 
   const fetchCatalogo = useCallback(async () => {
@@ -415,6 +415,12 @@ export default function AgendaDia({ currentStaff }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const HORAS_DESCANSO = ['13:30', '14:00', '14:30', '15:00'];
+  const sumarMinutos = (hhmm, mins) => {
+    const t = parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10) + Number(mins);
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  };
+
   const handleAgregarDescanso = async (e) => {
     e.preventDefault();
     if (!descansoForm.staff_id || !descansoForm.hora) return;
@@ -424,7 +430,7 @@ export default function AgendaDia({ currentStaff }) {
       {
         staff_id: descansoForm.staff_id,
         hora: descansoForm.hora,
-        hora_fin: descansoForm.hora_fin,
+        hora_fin: sumarMinutos(descansoForm.hora, descansoForm.duracion),
         historial_observaciones: descansoForm.nota,
         tipo: 'descanso',
         client_id: null,
@@ -436,7 +442,7 @@ export default function AgendaDia({ currentStaff }) {
 
     setSavingDescanso(false);
     if (!error) {
-      setDescansoForm({ staff_id: '', hora: '', hora_fin: '', nota: '' });
+      setDescansoForm({ staff_id: '', hora: '', hora_fin: '', duracion: 60, nota: '' });
       setMostrarDescanso(false);
       fetchAsignaciones();
     } else {
@@ -650,7 +656,7 @@ export default function AgendaDia({ currentStaff }) {
           </div>
           <div>
             <label className="text-xs font-semibold block mb-1">HORA</label>
-            <HoraInput value={form.hora} onChange={(v) => setForm({ ...form, hora: v })} />
+            <HoraInput min="10:30" max="19:30" value={form.hora} onChange={(v) => setForm({ ...form, hora: v })} />
           </div>
         </div>
 
@@ -790,11 +796,27 @@ export default function AgendaDia({ currentStaff }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold block mb-1">DESDE</label>
-                <HoraInput value={descansoForm.hora} onChange={(v) => setDescansoForm({ ...descansoForm, hora: v })} />
+                <select
+                  value={descansoForm.hora}
+                  onChange={(e) => setDescansoForm({ ...descansoForm, hora: e.target.value })}
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                >
+                  <option value="">--</option>
+                  {HORAS_DESCANSO.map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="text-xs font-semibold block mb-1">HASTA (opcional)</label>
-                <HoraInput value={descansoForm.hora_fin} onChange={(v) => setDescansoForm({ ...descansoForm, hora_fin: v })} />
+                <label className="text-xs font-semibold block mb-1">DURACIÓN</label>
+                <select
+                  value={descansoForm.duracion}
+                  onChange={(e) => setDescansoForm({ ...descansoForm, duracion: Number(e.target.value) })}
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                >
+                  <option value={60}>1 hora</option>
+                  <option value={90}>1 hora y media</option>
+                </select>
               </div>
             </div>
             <div>
