@@ -3,36 +3,36 @@ import React, { useState, useEffect } from 'react';
 // Pantalla de bienvenida de la primera vez que se abre la tablet cada día:
 // saludo + una frase que cambia a diario. Se cierra sola a los pocos segundos o al tocar.
 const FRASES = [
-  'Cada pestaña bien puesta es una pequeña obra de arte.',
-  'Hoy vas a hacer sentir bonita a alguien. Eso no es poca cosa.',
-  'La paciencia y la precisión: tu mejor combinación.',
-  'Una sonrisa al recibirla ya es parte del servicio.',
-  'Lo que haces con las manos, ellas lo llevan puesto todo el mes.',
-  'Un día a la vez, una clienta a la vez.',
-  'Tu trabajo se nota en la mirada de quien sale por esa puerta.',
-  'Tómate tu tiempo: lo bien hecho se ve.',
-  'Hoy es un buen día para superar el de ayer.',
-  'Confía en tu pulso, llevas años afinándolo.',
-  'Las pequeñas atenciones hacen que vuelvan.',
-  'Respira hondo, concéntrate y disfruta lo que haces.',
-  'El detalle marca la diferencia. Y tú los notas todos.',
-  'Cuidar a otras personas también es un arte. Gracias por hacerlo.',
-  'Hoy suma: cada clienta contenta es una victoria.',
-  'Tu energía se contagia. Que sea una buena.',
-  'No hace falta que sea perfecto, hace falta que sea con cariño.',
-  'Qué suerte tienen quienes se ponen en tus manos.',
-  'Empieza tranquila: el día se ordena solo.',
-  'Una pausa a tiempo también es profesionalidad.',
-  'Lo que hoy aprendas, mañana lo harás sin pensar.',
-  'Trabajar en equipo hace el día más ligero.',
-  'Cada servicio es una oportunidad de dejar huella.',
-  'Brilla: tu trabajo ya lo hace.',
-  'Despacio y con buena letra: así salen las cosas bonitas.',
-  'Hoy también eres parte de lo que hace especial este lugar.',
-  'Si hoy es un día largo, recuerda que lo estás haciendo muy bien.',
-  'La confianza de una clienta se gana con detalles como los tuyos.',
-  'Vamos a por un día bonito.',
-  'Mira lo que has aprendido desde el primer día. Sigue.',
+  'Eres más fuerte de lo que crees y más capaz de lo que imaginas.',
+  'Hoy te mereces un día bonito. Empieza regalándote una sonrisa.',
+  'No tienes que hacerlo todo hoy. Hazlo a tu ritmo.',
+  'Lo bueno llega a quienes no se rinden. Y tú no te rindes.',
+  'Cuidarte también es una prioridad. Hoy, empieza por ti.',
+  'Cada día es una página en blanco. Escribe una bonita.',
+  'Eres suficiente, tal y como eres.',
+  'Respira hondo. Todo lo que necesitas ya está en ti.',
+  'Los días buenos se construyen con pequeñas alegrías. Busca la de hoy.',
+  'Mereces cosas buenas. Hoy, deja que lleguen.',
+  'Tu luz hace más fácil el día de quienes te rodean.',
+  'Lo estás haciendo mejor de lo que piensas.',
+  'Que hoy te sorprenda algo bonito.',
+  'Sigue soñando en grande, un paso a la vez.',
+  'Tu energía importa. Elige una que te haga bien.',
+  'Hoy es un buen día para confiar en ti.',
+  'Rodéate de lo que te hace feliz y hoy empieza por una buena música.',
+  'Las cosas buenas toman tiempo. Tú vas bien.',
+  'Un café, una sonrisa y a por el día.',
+  'Eres el tipo de persona que hace mejor cualquier sitio al que llega.',
+  'Date permiso para disfrutar el camino, no solo la meta.',
+  'Hoy puede ser tu mejor día. Tú decides cómo empezarlo.',
+  'Lo que sientes hoy pasa. Lo que construyes se queda.',
+  'Agradecer lo pequeño hace grande el día.',
+  'No te compares: tu camino es solo tuyo.',
+  'Cada mañana es una nueva oportunidad. Aprovéchala a tu manera.',
+  'Eres valiente, aunque a veces no lo parezca.',
+  'Ríete hoy, aunque sea de ti misma. Es medicina.',
+  'Que no te falte hoy tiempo para ti.',
+  'Ser amable contigo misma es el mejor comienzo.',
 ];
 
 const claveHoy = () => {
@@ -81,7 +81,8 @@ export default function SaludoDia({ staff }) {
   const hoy = new Date();
   const inicio = new Date(hoy.getFullYear(), 0, 0);
   const diaDelAnio = Math.floor((hoy - inicio) / 86400000);
-  const frase = FRASES[diaDelAnio % FRASES.length];
+  const esViernes = hoy.getDay() === 5;
+  const frase = esViernes ? 'Que sea un día lleno de cosas buenas. ¡Ya casi es fin de semana!' : FRASES[diaDelAnio % FRASES.length];
   const nombre = (staff.nombre || '').split(' ')[0];
 
   return (
@@ -92,7 +93,7 @@ export default function SaludoDia({ staff }) {
     >
       <p className="font-display italic text-brand-700 text-lg mb-6">Las Pestañas de Julia</p>
       <h1 className="font-display text-4xl sm:text-5xl font-semibold text-ink mb-5">
-        {saludo()}, {nombre} <span className="inline-block">✨</span>
+        {esViernes ? '¡Feliz viernes' : saludo()}, {nombre}{esViernes ? '!' : ''} <span className="inline-block">{esViernes ? '🎉' : '✨'}</span>
       </h1>
       <p className="text-xl sm:text-2xl text-gray-600 max-w-md leading-snug">{frase}</p>
       <div className="mt-10 w-40 h-1 rounded-full bg-gray-200 overflow-hidden">
