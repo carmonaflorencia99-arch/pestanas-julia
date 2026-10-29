@@ -216,7 +216,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
               valor={client.profesional_habitual_id || ''}
               vacio="Sin preferencia"
               opciones={[{ value: '', label: 'Sin preferencia' }, ...profesionales.map((p) => ({ value: p.id, label: p.nombre }))]}
-              mostrar={() => (profesionalHabitual ? `⭐ ${profesionalHabitual}` : '')}
+              mostrar={() => (profesionalHabitual ? profesionalHabitual : '')}
               colorValor="text-blush-600 font-medium"
               puedeEditar={puedeEditarClienta}
               onGuardar={(v) => guardarCampo('profesional_habitual_id', v || null)}
@@ -242,7 +242,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
                     anadirNota();
                   }
                 }}
-                placeholder="➕ Añadir información (se guarda con la fecha)…"
+                placeholder="Añadir información (se guarda con la fecha)…"
                 className="flex-1 p-2 border rounded-lg text-sm"
               />
               <button
@@ -262,7 +262,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
               onClick={() => setShowEditClient(true)}
               className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-medium hover:bg-gray-200 whitespace-nowrap"
             >
-              ✏️ Editar datos
+              Editar datos
             </button>
           )}
           {puedeBorrarClienta && (
@@ -270,7 +270,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
               onClick={() => setShowDeleteConfirm(true)}
               className="text-xs bg-red-50 text-red-500 px-3 py-1.5 rounded-lg font-medium hover:bg-red-100 whitespace-nowrap"
             >
-              🗑️ Borrar clienta
+              Borrar clienta
             </button>
           )}
         </div>
@@ -425,7 +425,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
             </p>
             {rec.historial_observaciones === 'Pendiente de cargar historial' ? (
               <p className="mt-2 text-xs bg-red-50 p-2 rounded border border-red-200 text-red-600 font-semibold">
-                📝 Pendiente de cargar historial — usa "Editar" para completarlo
+                Pendiente de cargar historial — usa "Editar" para completarlo
               </p>
             ) : (
               rec.historial_observaciones && (

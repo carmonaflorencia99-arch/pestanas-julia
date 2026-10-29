@@ -62,13 +62,13 @@ export function formatoFecha(f) {
   return d.toLocaleDateString('es-ES');
 }
 
-// Texto corto para distinguir: "📞 600 111 222 · Última visita: 12/03/2026 · ⭐ Ana"
+// Texto corto para distinguir: "600 111 222 · Última visita: 12/03/2026 · Ana"
 export function resumenClienta(c) {
-  const partes = [c.telefono ? '📞 ' + c.telefono : 'Sin teléfono'];
+  const partes = [c.telefono ? c.telefono : 'Sin teléfono'];
   const f = formatoFecha(c.ultima_visita);
   partes.push(f ? 'Última visita: ' + f : 'Sin visitas');
   if (c.flowww_visitas) partes.push(c.flowww_visitas + (c.flowww_visitas === 1 ? ' visita' : ' visitas') + ' en Flowww');
-  if (c.profesional_habitual_nombre) partes.push('⭐ ' + c.profesional_habitual_nombre);
+  if (c.profesional_habitual_nombre) partes.push('Habitual: ' + c.profesional_habitual_nombre);
   if (c.flowww_id) partes.push('Nº ' + c.flowww_id);
   return partes.join(' · ');
 }

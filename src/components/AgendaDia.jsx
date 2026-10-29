@@ -360,7 +360,7 @@ export default function AgendaDia({ currentStaff }) {
       const nombres = [nombreProf(form.staff_id), ...enParalelo.map((b) => b.staff?.nombre || nombreProf(b.staff_id))]
         .filter(Boolean)
         .join(' y ');
-      setAvisoParalelo(`🔗 ${form.client.nombre} tiene servicios en paralelo a las ${form.hora}. Se avisa en la tablet de ${nombres}.`);
+      setAvisoParalelo(`${form.client.nombre} tiene servicios en paralelo a las ${form.hora}. Se avisa en la tablet de ${nombres}.`);
     };
 
     if (editingId) {
@@ -526,7 +526,7 @@ export default function AgendaDia({ currentStaff }) {
       {extras.length > 0 && (
         <div className="mb-6 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-amber-700 mb-3">
-            ⚠️ Servicios extra pendientes de cargar en Booksy ({extras.length})
+            Servicios extra pendientes de cargar en Booksy ({extras.length})
           </h3>
           <div className="space-y-2">
             {extras.map((ex) => (
@@ -556,7 +556,7 @@ export default function AgendaDia({ currentStaff }) {
       {pendientesHistorial.length > 0 && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
           <h3 className="text-sm font-bold text-red-700 mb-1">
-            📝 Pendiente de cargar historial ({pendientesHistorial.length})
+            Pendiente de cargar historial ({pendientesHistorial.length})
           </h3>
           <p className="text-xs text-red-500 mb-3">
             La profesional no recordó qué se le hizo. Complétalo desde Fichas → la clienta → Editar en ese registro.
@@ -649,7 +649,7 @@ export default function AgendaDia({ currentStaff }) {
                 onClick={abrirEditarClienta}
                 className="text-xs text-brand-600 font-semibold bg-brand-50 px-2.5 py-1 rounded-full hover:bg-brand-100"
               >
-                ✏️ Editar / añadir datos de la clienta
+                Editar / añadir datos de la clienta
               </button>
             </div>
           )}
@@ -675,7 +675,7 @@ export default function AgendaDia({ currentStaff }) {
               ))}
             </select>
             {profesionalAutoSeleccionada && (
-              <p className="text-xs text-blush-600 mt-1">⭐ Auto-seleccionada por preferencia</p>
+              <p className="text-xs text-blush-600 mt-1">Auto-seleccionada por preferencia</p>
             )}
           </div>
           <div>
@@ -693,7 +693,7 @@ export default function AgendaDia({ currentStaff }) {
 
             {servicioDetectado && (
               <p className="text-xs bg-brand-50 text-brand-700 font-medium px-3 py-2 rounded-xl">
-                ✨ Cargado automáticamente: {servicioDetectado}. Puedes cambiarlo.
+                Cargado automáticamente: {servicioDetectado}. Puedes cambiarlo.
               </p>
             )}
 
@@ -792,7 +792,7 @@ export default function AgendaDia({ currentStaff }) {
             onClick={() => setMostrarDescanso(true)}
             className="w-full border-2 border-dashed border-amber-300 text-amber-700 text-sm font-semibold py-2 rounded-lg hover:bg-amber-50"
           >
-            ☕ Agregar horario de descanso ({etiquetaFecha(fechaAgenda)})
+            Agregar horario de descanso ({etiquetaFecha(fechaAgenda)})
           </button>
         ) : (
           <form onSubmit={handleAgregarDescanso} className="bg-amber-50 p-4 rounded-xl border-2 border-amber-200 space-y-3">
@@ -873,7 +873,7 @@ export default function AgendaDia({ currentStaff }) {
           {a.tipo === 'descanso' ? (
             <div className={`flex justify-between items-center p-3 bg-amber-50 rounded-lg text-sm border border-amber-100 ${esPasada(a) ? 'opacity-50 grayscale' : ''}`}>
               <div>
-                <span className="font-semibold">☕ Descanso</span>{' '}
+                <span className="font-semibold">Descanso</span>{' '}
                 <span className="text-gray-400">
                   {a.hora}
                   {a.hora_fin && ` – ${a.hora_fin}`}
@@ -921,13 +921,13 @@ export default function AgendaDia({ currentStaff }) {
                   }`}
                 >
                   {a.fecha < hoyStr()
-                    ? `⚠️ ${a.staff?.nombre} no registró lo que se le hizo a esta clienta`
-                    : `📝 ${a.staff?.nombre} aún no registró lo realizado`}
+                    ? `${a.staff?.nombre} no registró lo que se le hizo a esta clienta`
+                    : `${a.staff?.nombre} aún no registró lo realizado`}
                 </p>
               )}
               {paralelosDe(a, asignaciones).map((b) => (
                 <p key={b.id} className="mt-2 text-xs bg-blush-50 text-blush-700 font-semibold px-2 py-1.5 rounded-lg">
-                  🔗 En paralelo con {b.staff?.nombre}: {resumenServicios(b)}
+                  En paralelo con {b.staff?.nombre}: {resumenServicios(b)}
                 </p>
               ))}
               <div className="flex gap-2 mt-2">
@@ -935,13 +935,13 @@ export default function AgendaDia({ currentStaff }) {
                   onClick={() => toggleCampo(a.id, 'llego', a.llego)}
                   className={`text-xs px-2 py-1 rounded-lg font-medium ${a.llego ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}
                 >
-                  {a.llego ? '✅ Llegó' : '⏳ Aún no llega'}
+                  {a.llego ? 'Llegó' : 'Aún no llega'}
                 </button>
                 <button
                   onClick={() => toggleCampo(a.id, 'pagado', a.pagado)}
                   className={`text-xs px-2 py-1 rounded-lg font-medium ${a.pagado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}
                 >
-                  {a.pagado ? '💰 Pagó' : 'Pendiente de pago'}
+                  {a.pagado ? 'Pagó' : 'Pendiente de pago'}
                 </button>
               </div>
             </div>

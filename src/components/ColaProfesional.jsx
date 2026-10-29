@@ -241,7 +241,7 @@ export default function ColaProfesional({ currentStaff }) {
           onClick={mostrarPendientes}
           className="mb-6 w-full text-left text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 active:bg-red-100"
         >
-          ⚠️ {pendientesRegistro.length} registro{pendientesRegistro.length > 1 ? 's' : ''} pendiente
+          {pendientesRegistro.length} registro{pendientesRegistro.length > 1 ? 's' : ''} pendiente
           {pendientesRegistro.length > 1 ? 's' : ''} (ocultos) · Toca para verlos
         </button>
       )}
@@ -304,7 +304,7 @@ export default function ColaProfesional({ currentStaff }) {
         <div className="space-y-2 mb-6">
           {descansos.map((d) => (
             <div key={d.id} className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-center gap-3">
-              <span className="text-2xl">☕</span>
+              
               <div>
                 <p className="font-bold text-amber-700">
                   Descanso {d.hora}
@@ -347,14 +347,14 @@ export default function ColaProfesional({ currentStaff }) {
               </div>
               {a.clients?.alertas_salud && (
                 <span className="text-xs bg-red-50 text-red-600 font-semibold px-3 py-2 rounded-full whitespace-nowrap">
-                  ⚠️ Alerta de salud
+                  Alerta de salud
                 </span>
               )}
             </div>
 
             {paralelosDe(a, otras).map((b) => (
               <div key={b.id} className="mb-4 bg-blush-50 border border-blush-200 text-blush-600 rounded-2xl px-4 py-3">
-                <p className="font-bold text-sm">🔗 Servicio en paralelo a la misma hora</p>
+                <p className="font-bold text-sm">Servicio en paralelo a la misma hora</p>
                 <p className="text-sm">
                   {b.staff?.nombre} la atiende a la vez: {resumenServicios(b)}. Coordinen para no hacerla esperar.
                 </p>

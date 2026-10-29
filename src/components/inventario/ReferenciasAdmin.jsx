@@ -147,7 +147,7 @@ export default function ReferenciasAdmin({ referencias, onCambios }) {
                   className="font-semibold text-gray-800 text-left"
                   title="Cambiar nombre"
                 >
-                  {g.tipo} <span className="text-xs text-gray-300">✎</span>
+                  {g.tipo}
                 </button>
               )}
               <div className="flex gap-3 items-center">

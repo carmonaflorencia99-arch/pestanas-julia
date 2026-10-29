@@ -71,7 +71,7 @@ export default function SaludoDia({ staff }) {
 
   useEffect(() => {
     if (!visible) return undefined;
-    const t = setTimeout(cerrar, 4500);
+    const t = setTimeout(cerrar, 7000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -93,11 +93,11 @@ export default function SaludoDia({ staff }) {
     >
       <p className="font-display italic text-brand-700 text-lg mb-6">Las Pestañas de Julia</p>
       <h1 className="font-display text-4xl sm:text-5xl font-semibold text-ink mb-5">
-        {esViernes ? '¡Feliz viernes' : saludo()}, {nombre}{esViernes ? '!' : ''} <span className="inline-block">{esViernes ? '🎉' : '✨'}</span>
+        {esViernes ? '¡Feliz viernes' : saludo()}, {nombre}{esViernes ? '!' : ''}
       </h1>
       <p className="text-xl sm:text-2xl text-gray-600 max-w-md leading-snug">{frase}</p>
       <div className="mt-10 w-40 h-1 rounded-full bg-gray-200 overflow-hidden">
-        <div className="h-full bg-pink-400 rounded-full" style={{ animation: 'saludoBarra 4.5s linear forwards' }} />
+        <div className="h-full bg-pink-400 rounded-full" style={{ animation: 'saludoBarra 7s linear forwards' }} />
       </div>
       <p className="text-xs text-gray-400 mt-4">Toca para empezar</p>
       <style>{`@keyframes saludoBarra { from { width: 0 } to { width: 100% } }`}</style>

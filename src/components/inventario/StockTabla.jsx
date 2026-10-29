@@ -56,7 +56,7 @@ export default function StockTabla({ stock, onCambios }) {
       {bajos.length > 0 && total > 0 && (
         <div className="mb-5 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
           <div className="flex justify-between items-start gap-3 mb-2">
-            <h3 className="text-sm font-bold text-amber-800">⚠️ Quedan pocas cajas ({bajos.length})</h3>
+            <h3 className="text-sm font-bold text-amber-800">Quedan pocas cajas ({bajos.length})</h3>
             <button
               onClick={copiarPedido}
               className="text-xs bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap"

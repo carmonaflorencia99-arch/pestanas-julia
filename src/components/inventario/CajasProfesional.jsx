@@ -39,7 +39,7 @@ export default function CajasProfesional({ currentStaff }) {
     <div className="bg-white rounded-2xl shadow-sm border-2 border-gray-100 p-5 mb-8">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="font-bold text-gray-800">📦 Cajas de pestañas</p>
+          <p className="font-bold text-gray-800">Cajas de pestañas</p>
           <p className="text-sm text-gray-400">¿Has sacado una caja del almacén? Regístrala aquí.</p>
         </div>
         <button

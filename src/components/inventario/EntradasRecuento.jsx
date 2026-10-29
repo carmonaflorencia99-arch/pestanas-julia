@@ -51,7 +51,7 @@ export default function EntradasRecuento({ referencias, stock, onCambios }) {
       anotar({
         ok: false,
         texto: `${codigoCorto(codigo)} ya estaba registrada como ${registrada}. No se ha contado otra vez.${
-          distinta ? ' ⚠️ Es de otro tipo o largo: revísala en Movimientos.' : ''
+          distinta ? ' Es de otro tipo o largo: revísala en Movimientos.' : ''
         }`,
       });
     } else {

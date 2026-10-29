@@ -151,7 +151,7 @@ export default function AdminPanel() {
       {disenosCambiados.length > 0 && (
         <div className="mb-6 bg-blush-50 border-2 border-blush-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-blush-600 mb-3">
-            🎨 Diseños cambiados pendientes de Booksy ({disenosCambiados.length})
+            Diseños cambiados pendientes de Booksy ({disenosCambiados.length})
           </h3>
           <div className="space-y-2">
             {disenosCambiados.map((r) => (
@@ -266,7 +266,7 @@ export default function AdminPanel() {
                       onClick={() => iniciarEdicionNombre(s)}
                       className="text-xs text-brand-600 hover:underline"
                     >
-                      ✏️ Editar nombre
+                      Editar nombre
                     </button>
                   </div>
                 )}
@@ -296,7 +296,7 @@ export default function AdminPanel() {
                 {grupos.map((g) => (
                   <option key={g.clave} value={g.nombre}>{g.nombre}</option>
                 ))}
-                <option value={NUEVA}>➕ Nueva categoría…</option>
+                <option value={NUEVA}>Nueva categoría…</option>
               </select>
               {newServicio.categoria !== '' && !grupos.some((g) => g.nombre === newServicio.categoria) && (
                 <input
@@ -384,7 +384,7 @@ export default function AdminPanel() {
                       onClick={() => iniciarEdicionServicio(s)}
                       className="text-xs text-brand-600 hover:underline"
                     >
-                      ✏️ Editar
+                      Editar
                     </button>
                   </div>
                 )}

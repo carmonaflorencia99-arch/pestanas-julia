@@ -53,7 +53,7 @@ export default function CampoEditable({
             title={`Editar ${etiqueta.toLowerCase()}`}
             className="text-xs text-brand-600 font-semibold px-2 py-0.5 rounded-lg hover:bg-brand-50"
           >
-            ✏️ {textoLectura ? 'Editar' : 'Añadir'}
+            {textoLectura ? 'Editar' : 'Añadir'}
           </button>
         )}
       </div>

@@ -298,7 +298,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
         <h2 className="text-3xl font-bold text-ink">{client.nombre}</h2>
         <p className={`text-lg font-medium mt-1 mb-2 ${client.alertas_salud ? 'text-red-500' : 'text-gray-400'}`}>
-          {client.alertas_salud ? '⚠️' : '✓'} {client.alertas_salud || 'Sin alertas de salud registradas'}
+          {client.alertas_salud ? '' : '✓'} {client.alertas_salud || 'Sin alertas de salud registradas'}
         </p>
         {asignacion && (
           <span
@@ -306,13 +306,13 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
               asignacion.pagado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
             }`}
           >
-            {asignacion.pagado ? '💰 Pagó' : 'Pendiente de pago'}
+            {asignacion.pagado ? 'Pagó' : 'Pendiente de pago'}
           </span>
         )}
 
         {(avisoFalta || (asignacion?.estado === 'completado' && pendientes > 0)) && pendientes > 0 && (
           <div className="mb-4 bg-red-50 border-2 border-red-300 text-red-700 rounded-xl px-4 py-3">
-            <p className="font-bold">⚠️ Falta registrar lo que se le hizo a {client.nombre}</p>
+            <p className="font-bold">Falta registrar lo que se le hizo a {client.nombre}</p>
             <p className="text-sm">
               Revisa el servicio y el diseño (ya vienen cargados con lo de la última vez) y pulsa "Confirmar".
               Quedará guardado en su historial.
@@ -328,7 +328,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
         {cargadoPorRecepcion && (
           <p className="text-xs bg-brand-100 text-brand-700 font-semibold px-3 py-2 rounded-lg inline-block mb-4">
-            📋 Cargado por recepción — revisa y confirma cada servicio
+            Cargado por recepción — revisa y confirma cada servicio
           </p>
         )}
 
@@ -438,7 +438,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
               onClick={() => setMostrarExtra(true)}
               className="w-full border-2 border-dashed border-amber-300 text-amber-700 text-base font-semibold py-4 rounded-xl active:bg-amber-50"
             >
-              ➕ La clienta se hizo algo extra
+              La clienta se hizo algo extra
             </button>
           ) : (
             <form onSubmit={handleSaveExtra} className="space-y-4 bg-amber-50 p-5 rounded-2xl border-2 border-amber-200">
