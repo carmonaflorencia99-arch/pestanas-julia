@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { agruparCatalogo } from '../lib/catalogo';
+import DisenoPestanas from './DisenoPestanas';
 
 // Solo las extensiones de pestañas exigen diseño u observaciones.
 const esExtensionPestanas = (categoria, subtipo) => {
   const t = `${categoria || ''} ${subtipo || ''}`.toLowerCase();
   return t.includes('extens') && t.includes('pesta');
 };
+
+const limpiarDiseno = (v) => (v || '').replace(/\s*·\s*$/, '').trim() || null;
 
 const esServicioDePestanas = (categoria, subtipo) => {
   const texto = `${categoria || ''} ${subtipo || ''}`.toLowerCase();
@@ -16,6 +19,15 @@ const esServicioDePestanas = (categoria, subtipo) => {
 export default function FichaTabletModal({ client, asignacion, currentStaff, onClose, avisoFalta = false }) {
   const [catalogo, setCatalogo] = useState({});
   const [records, setRecords] = useState([]);
+  const [tiposPestana, setTiposPestana] = useState([]); // tipos del inventario (2D LU, MTC, ...)
+  useEffect(() => {
+    supabase
+      .from('inv_referencias')
+      .select('tipo, orden_tipo, activo')
+      .eq('activo', true)
+      .order('orden_tipo')
+      .then(({ data }) => setTiposPestana([...new Set((data || []).map((r) => r.tipo))]));
+  }, []);
 
   // Lista de servicios de esta visita: viene de asignacion.servicios (nuevo
   // formato) o, si es una asignación vieja, de los campos sueltos (compatibilidad).
@@ -153,7 +165,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         staff_id: currentStaff.id,
         categoria_servicio: item.categoria_servicio,
         subtipo_servicio: item.subtipo_servicio,
-        diseno_pestanas: item.diseno_pestanas || null,
+        diseno_pestanas: limpiarDiseno(item.diseno_pestanas),
         diseno_cambio_pendiente: disenoCambioPendiente,
         historial_observaciones: item.historial_observaciones,
         // Si se está registrando una cita de un día anterior, queda con la fecha de esa cita.
@@ -209,7 +221,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         staff_id: currentStaff.id,
         categoria_servicio: extraForm.categoria_servicio,
         subtipo_servicio: extraForm.subtipo_servicio,
-        diseno_pestanas: extraForm.diseno_pestanas || null,
+        diseno_pestanas: limpiarDiseno(extraForm.diseno_pestanas),
         diseno_cambio_pendiente: disenoCambioPendiente,
         historial_observaciones: extraForm.historial_observaciones,
         es_extra: true,
@@ -368,13 +380,12 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
                 {esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) && (
                   <div>
-                    <label className="text-sm font-semibold block mb-2">DISEÑO DE PESTAÑAS</label>
-                    <input
-                      placeholder="Ej: Doll eye, gato, natural, mixto..."
+                    <label className="text-sm font-semibold block mb-2">DISEÑO / HISTORIAL DE PESTAÑAS</label>
+                    <DisenoPestanas
+                      tipos={tiposPestana}
                       value={item.diseno_pestanas || ''}
-                      onChange={(e) => actualizarItem(index, 'diseno_pestanas', e.target.value)}
+                      onChange={(v) => actualizarItem(index, 'diseno_pestanas', v)}
                       disabled={item.guardado}
-                      className="w-full p-4 border rounded-xl text-lg bg-white disabled:opacity-60"
                     />
                   </div>
                 )}
@@ -460,12 +471,11 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
               {esServicioDePestanas(extraForm.categoria_servicio, extraForm.subtipo_servicio) && (
                 <div>
-                  <label className="text-sm font-semibold block mb-2">DISEÑO DE PESTAÑAS</label>
-                  <input
-                    placeholder="Ej: Doll eye, gato, natural, mixto..."
+                  <label className="text-sm font-semibold block mb-2">DISEÑO / HISTORIAL DE PESTAÑAS</label>
+                  <DisenoPestanas
+                    tipos={tiposPestana}
                     value={extraForm.diseno_pestanas}
-                    onChange={(e) => setExtraForm({ ...extraForm, diseno_pestanas: e.target.value })}
-                    className="w-full p-4 border rounded-xl text-lg bg-white"
+                    onChange={(v) => setExtraForm({ ...extraForm, diseno_pestanas: v })}
                   />
                 </div>
               )}
