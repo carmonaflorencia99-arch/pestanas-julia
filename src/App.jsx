@@ -35,7 +35,17 @@ export default function App() {
   useEffect(() => {
     const restoreSession = async () => {
       const { data } = await supabase.auth.getSession();
-      const savedStaff = sessionStorage.getItem('currentStaff');
+      // Profesionales (tablets del salón): la sesión se recuerda en ese dispositivo hasta que toquen "Salir".
+      // Secretaría y administración: solo mientras la pestaña esté abierta.
+      let savedStaff = sessionStorage.getItem('currentStaff');
+      if (!savedStaff) {
+        try {
+          const recordada = localStorage.getItem('currentStaffTablet');
+          if (recordada && JSON.parse(recordada).rol === 'profesional') savedStaff = recordada;
+        } catch (e) {
+          /* sin almacenamiento local: se pedirá el PIN */
+        }
+      }
       if (data.session && savedStaff) {
         setCurrentStaff(JSON.parse(savedStaff));
       }
@@ -47,11 +57,22 @@ export default function App() {
   const handleLoggedIn = (staff) => {
     setCurrentStaff(staff);
     sessionStorage.setItem('currentStaff', JSON.stringify(staff));
+    try {
+      if (staff.rol === 'profesional') localStorage.setItem('currentStaffTablet', JSON.stringify(staff));
+      else localStorage.removeItem('currentStaffTablet');
+    } catch (e) {
+      /* ignorar */
+    }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     sessionStorage.removeItem('currentStaff');
+    try {
+      localStorage.removeItem('currentStaffTablet');
+    } catch (e) {
+      /* ignorar */
+    }
     setCurrentStaff(null);
     setSelectedClient(null);
   };
