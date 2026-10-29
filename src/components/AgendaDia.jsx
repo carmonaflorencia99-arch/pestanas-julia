@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { agruparCatalogo } from '../lib/catalogo';
 import NewClientModal from './NewClientModal';
 import EditClientModal from './EditClientModal';
 import HoraInput from './HoraInput';
@@ -51,15 +52,11 @@ export default function AgendaDia({ currentStaff }) {
   const fetchCatalogo = useCallback(async () => {
     const { data } = await supabase
       .from('servicios_catalogo')
-      .select('categoria, subtipo')
+      .select('categoria, subtipo, orden')
       .eq('activo', true)
       .order('orden');
     if (data) {
-      const grouped = {};
-      data.forEach((s) => {
-        if (!grouped[s.categoria]) grouped[s.categoria] = [];
-        grouped[s.categoria].push(s.subtipo);
-      });
+      const grouped = agruparCatalogo(data);
       setCatalogo(grouped);
     }
   }, []);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { gruposDeCatalogo, claveCategoria } from '../lib/catalogo';
 
 // NOTA: crear un usuario nuevo de Supabase Auth desde el navegador con
 // la anon key no es posible por seguridad (se necesita la service_role
@@ -83,9 +84,30 @@ export default function AdminPanel() {
     fetchStaff();
   };
 
+  const grupos = gruposDeCatalogo(catalogo);
+  const gruposConVariantes = grupos.filter((g) => g.variantes.length > 1);
+  const NUEVA = '__nueva__';
+  // devuelve el nombre canónico si la categoría ya existe (aunque cambien mayúsculas/tildes)
+  const nombreCanonico = (txt) => {
+    const g = grupos.find((x) => x.clave === claveCategoria(txt));
+    return g ? g.nombre : (txt || '').replace(/\s+/g, ' ').trim();
+  };
+
+  const unificarGrupo = async (g) => {
+    const { error } = await supabase
+      .from('servicios_catalogo')
+      .update({ categoria: g.nombre })
+      .in('categoria', g.variantes.concat(g.filas.map((f) => f.categoria)));
+    if (error) alert('No se pudo unificar (puede haber servicios repetidos dentro del grupo).');
+    fetchCatalogo();
+  };
+
   const handleAddServicio = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('servicios_catalogo').insert([newServicio]);
+    const { error } = await supabase.from('servicios_catalogo').insert([{
+      categoria: nombreCanonico(newServicio.categoria),
+      subtipo: newServicio.subtipo.trim(),
+    }]);
     if (!error) {
       setNewServicio({ categoria: '', subtipo: '' });
       fetchCatalogo();
@@ -109,7 +131,7 @@ export default function AdminPanel() {
     if (!editingServicioCategoria.trim() || !editingServicioSubtipo.trim()) return;
     const { error } = await supabase
       .from('servicios_catalogo')
-      .update({ categoria: editingServicioCategoria.trim(), subtipo: editingServicioSubtipo.trim() })
+      .update({ categoria: nombreCanonico(editingServicioCategoria), subtipo: editingServicioSubtipo.trim() })
       .eq('id', id);
     if (!error) {
       setEditingServicioId(null);
@@ -263,13 +285,30 @@ export default function AdminPanel() {
       {tab === 'catalogo' && (
         <div>
           <form onSubmit={handleAddServicio} className="grid grid-cols-2 gap-3 mb-6 p-4 bg-gray-50 rounded-lg">
-            <input
-              required
-              placeholder="Categoría (ej. Manicura)"
-              value={newServicio.categoria}
-              onChange={(e) => setNewServicio({ ...newServicio, categoria: e.target.value })}
-              className="p-2 border rounded-lg text-sm"
-            />
+            <div>
+              <select
+                required
+                value={grupos.some((g) => g.nombre === newServicio.categoria) ? newServicio.categoria : (newServicio.categoria ? NUEVA : '')}
+                onChange={(e) => setNewServicio({ ...newServicio, categoria: e.target.value === NUEVA ? ' ' : e.target.value })}
+                className="w-full p-2 border rounded-lg text-sm bg-white"
+              >
+                <option value="">Categoría…</option>
+                {grupos.map((g) => (
+                  <option key={g.clave} value={g.nombre}>{g.nombre}</option>
+                ))}
+                <option value={NUEVA}>➕ Nueva categoría…</option>
+              </select>
+              {newServicio.categoria !== '' && !grupos.some((g) => g.nombre === newServicio.categoria) && (
+                <input
+                  required
+                  autoFocus
+                  placeholder="Nombre de la nueva categoría"
+                  value={newServicio.categoria.trim() === '' ? '' : newServicio.categoria}
+                  onChange={(e) => setNewServicio({ ...newServicio, categoria: e.target.value || ' ' })}
+                  className="w-full p-2 border rounded-lg text-sm mt-2"
+                />
+              )}
+            </div>
             <input
               required
               placeholder="Subtipo (ej. Semipermanente)"
@@ -282,18 +321,37 @@ export default function AdminPanel() {
             </button>
           </form>
 
+          {gruposConVariantes.length > 0 && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 space-y-2">
+              <p className="font-semibold">Hay categorías escritas de forma distinta</p>
+              {gruposConVariantes.map((g) => (
+                <div key={g.clave} className="flex items-center justify-between gap-2">
+                  <span>{g.variantes.map((v) => `“${v}”`).join(' + ')} → <b>{g.nombre}</b></span>
+                  <button onClick={() => unificarGrupo(g)} className="text-xs bg-amber-600 text-white px-2 py-1.5 rounded-lg font-medium whitespace-nowrap">
+                    Unificar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-2">
             {catalogo.map((s) => (
               <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
                 {editingServicioId === s.id ? (
                   <div className="flex items-center gap-2 flex-1">
-                    <input
-                      autoFocus
-                      value={editingServicioCategoria}
+                    <select
+                      value={grupos.some((g) => g.nombre === editingServicioCategoria) ? editingServicioCategoria : ''}
                       onChange={(e) => setEditingServicioCategoria(e.target.value)}
-                      placeholder="Categoría"
-                      className="p-1.5 border rounded-lg text-sm flex-1"
-                    />
+                      className="p-1.5 border rounded-lg text-sm flex-1 bg-white"
+                    >
+                      {!grupos.some((g) => g.nombre === editingServicioCategoria) && (
+                        <option value="">{editingServicioCategoria}</option>
+                      )}
+                      {grupos.map((g) => (
+                        <option key={g.clave} value={g.nombre}>{g.nombre}</option>
+                      ))}
+                    </select>
                     <input
                       value={editingServicioSubtipo}
                       onChange={(e) => setEditingServicioSubtipo(e.target.value)}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { agruparCatalogo } from '../lib/catalogo';
 import EditClientModal from './EditClientModal';
 import CampoEditable from './CampoEditable';
 
@@ -42,15 +43,11 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   const fetchCatalogo = useCallback(async () => {
     const { data } = await supabase
       .from('servicios_catalogo')
-      .select('categoria, subtipo')
+      .select('categoria, subtipo, orden')
       .eq('activo', true)
       .order('orden');
     if (data) {
-      const grouped = {};
-      data.forEach((s) => {
-        if (!grouped[s.categoria]) grouped[s.categoria] = [];
-        grouped[s.categoria].push(s.subtipo);
-      });
+      const grouped = agruparCatalogo(data);
       setCatalogo(grouped);
       const firstCat = Object.keys(grouped)[0];
       if (firstCat) {
