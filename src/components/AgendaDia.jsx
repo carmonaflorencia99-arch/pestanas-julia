@@ -415,6 +415,30 @@ export default function AgendaDia({ currentStaff }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Reloj para la línea rosa de "ahora" (se actualiza cada minuto)
+  const [ahora, setAhora] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const hoyLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+  const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const aMinutos = (h) => (h && /^\d{1,2}:\d{2}/.test(h) ? parseInt(h.slice(0, 2), 10) * 60 + parseInt(h.slice(3, 5), 10) : null);
+  const esHoyAgenda = fechaAgenda === hoyLocal;
+  const finDe = (a) => (a.tipo === 'descanso' && aMinutos(a.hora_fin) != null ? aMinutos(a.hora_fin) : aMinutos(a.hora));
+  const esPasada = (a) => esHoyAgenda && finDe(a) != null && finDe(a) < minAhora;
+  const hayHoras = asignaciones.some((a) => aMinutos(a.hora) != null);
+  let idxLinea = asignaciones.findIndex((a) => aMinutos(a.hora) != null && aMinutos(a.hora) > minAhora);
+  if (idxLinea === -1) idxLinea = asignaciones.length;
+  const horaAhora = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+  const LineaAhora = () => (
+    <div className="flex items-center gap-2 py-1" aria-label={`Ahora ${horaAhora}`}>
+      <span className="w-2.5 h-2.5 rounded-full bg-pink-500" />
+      <span className="flex-1 h-0.5 bg-pink-400 rounded" />
+      <span className="text-xs font-bold text-pink-500">Ahora · {horaAhora}</span>
+    </div>
+  );
+
   const HORAS_DESCANSO = ['13:30', '14:00', '14:30', '15:00'];
   const sumarMinutos = (hhmm, mins) => {
     const t = parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10) + Number(mins);
@@ -843,9 +867,11 @@ export default function AgendaDia({ currentStaff }) {
       <h3 className="text-sm font-semibold text-gray-700 mb-3">Cola de {etiquetaFecha(fechaAgenda)}</h3>
       <div className="space-y-2">
         {asignaciones.length === 0 && <p className="text-xs text-gray-400">Todavía no hay asignaciones para esta fecha.</p>}
-        {asignaciones.map((a) =>
-          a.tipo === 'descanso' ? (
-            <div key={a.id} className="flex justify-between items-center p-3 bg-amber-50 rounded-lg text-sm border border-amber-100">
+        {asignaciones.map((a, idx) => (
+          <React.Fragment key={a.id}>
+          {esHoyAgenda && hayHoras && idx === idxLinea && <LineaAhora />}
+          {a.tipo === 'descanso' ? (
+            <div className={`flex justify-between items-center p-3 bg-amber-50 rounded-lg text-sm border border-amber-100 ${esPasada(a) ? 'opacity-50 grayscale' : ''}`}>
               <div>
                 <span className="font-semibold">☕ Descanso</span>{' '}
                 <span className="text-gray-400">
@@ -860,7 +886,7 @@ export default function AgendaDia({ currentStaff }) {
               </button>
             </div>
           ) : (
-            <div key={a.id} className="p-3 bg-gray-50 rounded-lg text-sm">
+            <div className={`p-3 bg-gray-50 rounded-lg text-sm ${esPasada(a) ? 'opacity-50 grayscale' : ''}`}>
               <div className="flex justify-between items-start">
                 <div>
                   <span className="font-semibold">{a.hora || '—'}</span>{' '}
@@ -919,8 +945,10 @@ export default function AgendaDia({ currentStaff }) {
                 </button>
               </div>
             </div>
-          )
-        )}
+          )}
+          </React.Fragment>
+        ))}
+        {esHoyAgenda && hayHoras && idxLinea === asignaciones.length && <LineaAhora />}
       </div>
 
       {clienteEditar && (
