@@ -7,6 +7,7 @@ import NewClientModal from './components/NewClientModal';
 import AdminPanel from './components/AdminPanel';
 import AgendaDia from './components/AgendaDia';
 import ColaProfesional from './components/ColaProfesional';
+import SaludoDia from './components/SaludoDia';
 import Inventario from './components/inventario/Inventario';
 import { exportRecordsToCsv } from './utils/exportCsv';
 import { estaBaja } from './utils/inventario';
@@ -101,6 +102,7 @@ export default function App() {
             Salir
           </button>
         </div>
+        <SaludoDia staff={currentStaff} />
         <ColaProfesional currentStaff={currentStaff} />
       </div>
     );
