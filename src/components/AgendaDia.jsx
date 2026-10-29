@@ -469,8 +469,8 @@ export default function AgendaDia({ currentStaff }) {
       </p>
 
       {/* Selector de fecha: permite armar la agenda de mañana con anticipación */}
-      <div className="flex items-center gap-2 mb-6 bg-gray-50 p-3 rounded-xl">
-        <label className="text-xs font-semibold text-gray-500">VIENDO AGENDA DE:</label>
+      <div className="flex flex-wrap items-center gap-2 mb-6 bg-gray-50 p-3 rounded-xl">
+        <label className="text-xs font-semibold text-gray-500 w-full sm:w-auto">VIENDO AGENDA DE:</label>
         <button
           type="button"
           onClick={() => setFechaAgenda(hoyStr())}
@@ -489,7 +489,7 @@ export default function AgendaDia({ currentStaff }) {
           type="date"
           value={fechaAgenda}
           onChange={(e) => setFechaAgenda(e.target.value)}
-          className="text-xs px-2 py-1.5 rounded-lg border bg-white"
+          className="text-xs px-2 py-1.5 rounded-lg border bg-white min-w-0 max-w-full"
         />
       </div>
 

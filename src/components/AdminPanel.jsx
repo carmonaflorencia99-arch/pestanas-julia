@@ -335,8 +335,14 @@ export default function AdminPanel() {
             </div>
           )}
 
-          <div className="space-y-2">
-            {catalogo.map((s) => (
+          <div className="space-y-5">
+            {grupos.map((g) => (
+              <div key={g.clave}>
+                <h4 className="text-xs font-bold uppercase tracking-wide text-brand-700 mb-2">
+                  {g.nombre} <span className="text-gray-400 font-medium">· {g.filas.length}</span>
+                </h4>
+                <div className="space-y-2">
+                  {g.filas.map((s) => (
               <div key={s.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg text-sm">
                 {editingServicioId === s.id ? (
                   <div className="flex items-center gap-2 flex-1">
@@ -373,8 +379,7 @@ export default function AdminPanel() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">{s.categoria}</span>
-                    <span className="text-gray-400">— {s.subtipo}</span>
+                    <span className="font-semibold">{s.subtipo}</span>
                     <button
                       onClick={() => iniciarEdicionServicio(s)}
                       className="text-xs text-brand-600 hover:underline"
@@ -389,6 +394,9 @@ export default function AdminPanel() {
                 >
                   {s.activo ? 'Activo' : 'Oculto'}
                 </button>
+              </div>
+            ))}
+                </div>
               </div>
             ))}
           </div>
