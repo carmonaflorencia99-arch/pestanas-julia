@@ -46,7 +46,7 @@ export default function AgendaDia({ currentStaff }) {
 
   // ----- Descanso -----
   const [mostrarDescanso, setMostrarDescanso] = useState(false);
-  const [descansoForm, setDescansoForm] = useState({ staff_id: '', hora: '', hora_fin: '', duracion: 60, nota: '' });
+  const [descansoForm, setDescansoForm] = useState({ staff_id: '', hora: '', hora_fin: '', duracion: 60 });
   const [savingDescanso, setSavingDescanso] = useState(false);
 
   const fetchCatalogo = useCallback(async () => {
@@ -431,7 +431,7 @@ export default function AgendaDia({ currentStaff }) {
         staff_id: descansoForm.staff_id,
         hora: descansoForm.hora,
         hora_fin: sumarMinutos(descansoForm.hora, descansoForm.duracion),
-        historial_observaciones: descansoForm.nota,
+        historial_observaciones: '',
         tipo: 'descanso',
         client_id: null,
         servicios: [],
@@ -442,7 +442,7 @@ export default function AgendaDia({ currentStaff }) {
 
     setSavingDescanso(false);
     if (!error) {
-      setDescansoForm({ staff_id: '', hora: '', hora_fin: '', duracion: 60, nota: '' });
+      setDescansoForm({ staff_id: '', hora: '', hora_fin: '', duracion: 60 });
       setMostrarDescanso(false);
       fetchAsignaciones();
     } else {
@@ -819,15 +819,7 @@ export default function AgendaDia({ currentStaff }) {
                 </select>
               </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold block mb-1">NOTA (opcional)</label>
-              <input
-                placeholder="Almuerzo, trámite personal..."
-                value={descansoForm.nota}
-                onChange={(e) => setDescansoForm({ ...descansoForm, nota: e.target.value })}
-                className="w-full p-2 border rounded-lg text-sm bg-white"
-              />
-            </div>
+
             <button
               type="submit"
               disabled={savingDescanso || !descansoForm.staff_id || !descansoForm.hora}

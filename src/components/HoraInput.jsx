@@ -1,64 +1,94 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
-// Selector de hora en formato 24 h (sin a. m. / p. m.): dos desplegables, hora y minutos.
-// value: "16:30" o "" · onChange recibe "16:30" o "".
-const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTOS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
-
+// Hora escrita a mano en 24 h: basta teclear 1030 (o 10:30, 10.30, 930) y se ordena sola.
+// value: "16:30" o "" · onChange recibe "16:30" cuando la hora es válida y está en rango, o "".
 const aMin = (hhmm) => parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10);
 
-// min / max: rango permitido ("10:30" a "19:30"). Una hora ya guardada fuera de rango se sigue mostrando.
+// Interpreta lo escrito → "HH:MM" o null
+function interpretar(texto) {
+  const t = (texto || '').trim();
+  let h, m;
+  const con = t.match(/^(\d{1,2})\s*[:.,hH]\s*(\d{1,2})$/);
+  if (con) {
+    h = con[1];
+    m = con[2].length === 1 ? con[2] + '0' : con[2];
+  } else if (/^\d{3,4}$/.test(t)) {
+    h = t.slice(0, t.length - 2);
+    m = t.slice(-2);
+  } else if (/^\d{1,2}$/.test(t)) {
+    h = t;
+    m = '00';
+  } else {
+    return null;
+  }
+  const hh = parseInt(h, 10);
+  const mm = parseInt(m, 10);
+  if (hh > 23 || mm > 59) return null;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
 export default function HoraInput({ value, onChange, className = '', min: desde = '00:00', max: hasta = '23:59' }) {
-  const [h, m] = (value || '').split(':');
-  const hora = h || '';
-  const min = m || '';
+  const [texto, setTexto] = useState(value || '');
+  const [error, setError] = useState('');
 
-  const cambiarHora = (nuevaH) => {
-    if (!nuevaH) return onChange('');
-    const primero = MINUTOS.find((mm) => dentro(nuevaH, mm)) || '00';
-    onChange(`${nuevaH}:${min && dentro(nuevaH, min) ? min : primero}`);
-  };
-  const cambiarMin = (nuevoM) => {
-    if (!hora) return; // primero hay que elegir la hora
-    onChange(`${hora}:${nuevoM}`);
+  // Si el valor cambia desde fuera (limpiar formulario, editar otra cita), se refleja aquí.
+  useEffect(() => {
+    // solo si el cambio viene de fuera (no de lo que se está escribiendo ahora)
+    if ((value || '') !== (interpretar(texto) === value ? value : '')) {
+      setTexto(value || '');
+      setError('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  const validar = (t, mostrarError) => {
+    if (!t.trim()) {
+      setError('');
+      return '';
+    }
+    const h = interpretar(t);
+    if (!h) {
+      if (mostrarError) setError('Escribe la hora así: 10:30');
+      return '';
+    }
+    if (aMin(h) < aMin(desde) || aMin(h) > aMin(hasta)) {
+      if (mostrarError) setError(`Entre ${desde} y ${hasta}`);
+      return '';
+    }
+    setError('');
+    return h;
   };
 
-  // Si ya había una hora con minutos que no son múltiplo de 5 (p. ej. 16:32), se muestra igual.
-  const dentro = (hh, mm) => aMin(`${hh}:${mm}`) >= aMin(desde) && aMin(`${hh}:${mm}`) <= aMin(hasta);
-  const horasOpciones = HORAS.filter((x) => MINUTOS.some((mm) => dentro(x, mm)) || x === hora);
-  const base = MINUTOS.filter((mm) => !hora || dentro(hora, mm));
-  const minutosOpciones = min && !base.includes(min) ? [...base, min].sort() : base;
+  const alCambiar = (e) => {
+    const t = e.target.value.replace(/[^\d:.,hH\s]/g, '').slice(0, 5);
+    setTexto(t);
+    if (!t.trim()) setError('');
+    // si ya es una hora completa y válida, se acepta al momento (sin esperar a salir del campo)
+    const h = /^\d{3,4}$|^\d{1,2}[:.,hH]\d{2}$/.test(t) ? validar(t, false) : '';
+    onChange(h);
+  };
+
+  const alSalir = () => {
+    if (texto === (value || '')) return; // sin cambios (p. ej. cita antigua fuera de rango)
+    const h = validar(texto, true);
+    if (h) setTexto(h);
+    onChange(h);
+  };
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <select
-        value={hora}
-        onChange={(e) => cambiarHora(e.target.value)}
-        className="flex-1 p-2 border rounded-lg text-sm bg-white"
-        aria-label="Hora"
-      >
-        <option value="">--</option>
-        {horasOpciones.map((x) => (
-          <option key={x} value={x}>
-            {x}
-          </option>
-        ))}
-      </select>
-      <span className="font-semibold text-gray-400">:</span>
-      <select
-        value={min}
-        onChange={(e) => cambiarMin(e.target.value)}
-        disabled={!hora}
-        className="flex-1 p-2 border rounded-lg text-sm bg-white disabled:opacity-50"
-        aria-label="Minutos"
-      >
-        {!hora && <option value="">--</option>}
-        {minutosOpciones.map((x) => (
-          <option key={x} value={x}>
-            {x}
-          </option>
-        ))}
-      </select>
+    <div className={className}>
+      <input
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="10:30"
+        value={texto}
+        onChange={alCambiar}
+        onBlur={alSalir}
+        aria-label="Hora (24 h)"
+        className={`w-full p-2 border rounded-lg text-sm bg-white ${error ? 'border-red-400' : ''}`}
+      />
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
