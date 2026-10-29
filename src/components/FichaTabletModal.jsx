@@ -106,6 +106,20 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
   // El diseño de pestañas de la última vez viene ya escrito: si no cambió,
   // basta con confirmar. Si cambió, se edita y recepción lo verá como cambio.
+  const [unificado, setUnificado] = useState(false);
+  useEffect(() => {
+    if (unificado || items.length === 0) return;
+    setUnificado(true);
+    setItems((prev) =>
+      prev.map((it) => {
+        const obs = (it.historial_observaciones || '').trim();
+        if (!esServicioDePestanas(it.categoria_servicio, it.subtipo_servicio) || !obs) return it;
+        const dis = (it.diseno_pestanas || '').trim();
+        return { ...it, diseno_pestanas: dis ? `${dis} — ${obs}` : obs, historial_observaciones: '' };
+      })
+    );
+  }, [items.length, unificado]);
+
   const [disenoPrellenado, setDisenoPrellenado] = useState(false);
   useEffect(() => {
     if (disenoPrellenado || items.length === 0 || records.length === 0) return;
@@ -380,7 +394,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
                 {esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) && (
                   <div>
-                    <label className="text-sm font-semibold block mb-2">DISEÑO / HISTORIAL DE PESTAÑAS</label>
+                    <label className="text-sm font-semibold block mb-2">DISEÑO Y OBSERVACIONES</label>
                     <DisenoPestanas
                       tipos={tiposPestana}
                       value={item.diseno_pestanas || ''}
@@ -390,6 +404,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                   </div>
                 )}
 
+                {!esServicioDePestanas(item.categoria_servicio, item.subtipo_servicio) && (
                 <div>
                   <label className="text-sm font-semibold block mb-2">OBSERVACIONES</label>
                   <textarea
@@ -401,6 +416,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                     className="w-full p-4 border rounded-xl text-lg bg-white disabled:opacity-60"
                   />
                 </div>
+                )}
 
                 <button
                   onClick={() => guardarItem(index)}
@@ -471,7 +487,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
 
               {esServicioDePestanas(extraForm.categoria_servicio, extraForm.subtipo_servicio) && (
                 <div>
-                  <label className="text-sm font-semibold block mb-2">DISEÑO / HISTORIAL DE PESTAÑAS</label>
+                  <label className="text-sm font-semibold block mb-2">DISEÑO Y OBSERVACIONES</label>
                   <DisenoPestanas
                     tipos={tiposPestana}
                     value={extraForm.diseno_pestanas}
@@ -480,6 +496,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                 </div>
               )}
 
+              {!esServicioDePestanas(extraForm.categoria_servicio, extraForm.subtipo_servicio) && (
               <div>
                 <label className="text-sm font-semibold block mb-2">DETALLE (opcional)</label>
                 <textarea
@@ -490,6 +507,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
                   className="w-full p-4 border rounded-xl text-lg bg-white"
                 />
               </div>
+              )}
 
               <button
                 type="submit"
