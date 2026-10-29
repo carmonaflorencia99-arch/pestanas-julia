@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import EditClientModal from './EditClientModal';
+import CampoEditable from './CampoEditable';
 
 export default function ClientFicha({ client, currentStaff, onClientUpdated, onClientDeleted }) {
   const [records, setRecords] = useState([]);
@@ -150,8 +151,47 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   const puedeEditarRegistro = (rec) =>
     currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria' || rec.staff_id === currentStaff.id;
 
+  // Para borrar basta escribir "borrar" (sin importar mayúsculas, tildes ni espacios).
+  const normaliza = (t) =>
+    (t || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  const confirmacionOk = normaliza(confirmText) === 'borrar';
+
+  // Guarda un dato de la clienta directamente desde la ficha.
+  const guardarCampo = async (campo, valor) => {
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ [campo]: valor })
+      .eq('id', client.id)
+      .select()
+      .single();
+    if (error || !data) {
+      alert('No se pudo guardar el cambio.');
+      return false;
+    }
+    onClientUpdated?.(data);
+    return true;
+  };
+
+  // Añade una nota rápida (con la fecha) al final del historial y observaciones de la clienta.
+  const [notaRapida, setNotaRapida] = useState('');
+  const [guardandoNota, setGuardandoNota] = useState(false);
+  const anadirNota = async () => {
+    const texto = notaRapida.trim();
+    if (!texto) return;
+    setGuardandoNota(true);
+    const hoy = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+    const previo = (client.notas_generales || '').trim();
+    const ok = await guardarCampo('notas_generales', `${previo ? previo + '\n' : ''}${hoy}: ${texto}`);
+    setGuardandoNota(false);
+    if (ok) setNotaRapida('');
+  };
+
   const handleDeleteClient = async () => {
-    if (confirmText.trim() !== client.nombre.trim()) return;
+    if (!confirmacionOk) return;
     setDeleting(true);
     const { error } = await supabase.from('clients').delete().eq('id', client.id);
     setDeleting(false);
@@ -165,22 +205,69 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   return (
     <div>
       <div className="border-b pb-4 mb-4 flex justify-between items-start">
-        <div>
+        <div className="flex-1 min-w-0 pr-3">
           <h2 className="text-lg font-bold text-ink uppercase">{client.nombre}</h2>
-          <p className="text-xs text-gray-500">{client.telefono || 'Sin teléfono'}</p>
-          {client.flowww_id && (
-            <p className="text-xs text-gray-400">Nº de clienta en Flowww: {client.flowww_id}</p>
-          )}
-          <p className={`text-xs font-medium mt-1 ${client.alertas_salud ? 'text-red-500' : 'text-gray-400'}`}>
-            {client.alertas_salud ? '⚠️' : '✓'} Alertas de salud: {client.alertas_salud || 'Ninguna registrada'}
-          </p>
-          {profesionalHabitual && (
-            <p className="text-xs text-blush-600 font-medium mt-1">⭐ Profesional habitual: {profesionalHabitual}</p>
-          )}
-          {client.notas_generales && (
-            <p className="mt-2 text-xs bg-gray-50 p-2 rounded border border-gray-200 text-gray-600 max-w-md">
-              <strong>Historial y observaciones:</strong> {client.notas_generales}
-            </p>
+          {client.flowww_id && <p className="text-xs text-gray-400 mb-2">Nº de clienta en Flowww: {client.flowww_id}</p>}
+          <div className="space-y-1.5 mt-2">
+            <CampoEditable
+              etiqueta="Teléfono"
+              valor={client.telefono}
+              vacio="Sin teléfono"
+              puedeEditar={puedeEditarClienta}
+              onGuardar={(v) => guardarCampo('telefono', v.trim())}
+            />
+            <CampoEditable
+              etiqueta="Alertas de salud"
+              valor={client.alertas_salud}
+              vacio="Ninguna registrada"
+              multilinea
+              colorValor="text-red-500 font-medium"
+              puedeEditar={puedeEditarClienta}
+              onGuardar={(v) => guardarCampo('alertas_salud', v.trim())}
+            />
+            <CampoEditable
+              etiqueta="Profesional"
+              valor={client.profesional_habitual_id || ''}
+              vacio="Sin preferencia"
+              opciones={[{ value: '', label: 'Sin preferencia' }, ...profesionales.map((p) => ({ value: p.id, label: p.nombre }))]}
+              mostrar={() => (profesionalHabitual ? `⭐ ${profesionalHabitual}` : '')}
+              colorValor="text-blush-600 font-medium"
+              puedeEditar={puedeEditarClienta}
+              onGuardar={(v) => guardarCampo('profesional_habitual_id', v || null)}
+            />
+            <CampoEditable
+              etiqueta="Historial y observaciones"
+              valor={client.notas_generales}
+              vacio="Sin notas"
+              multilinea
+              puedeEditar={puedeEditarClienta}
+              onGuardar={(v) => guardarCampo('notas_generales', v.trim())}
+            />
+          </div>
+
+          {puedeEditarClienta && (
+            <div className="mt-3 flex gap-2">
+              <input
+                value={notaRapida}
+                onChange={(e) => setNotaRapida(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    anadirNota();
+                  }
+                }}
+                placeholder="➕ Añadir información (se guarda con la fecha)…"
+                className="flex-1 p-2 border rounded-lg text-sm"
+              />
+              <button
+                type="button"
+                onClick={anadirNota}
+                disabled={!notaRapida.trim() || guardandoNota}
+                className="bg-brand-600 text-white text-xs font-semibold px-3 rounded-lg disabled:opacity-40"
+              >
+                {guardandoNota ? '...' : 'Añadir'}
+              </button>
+            </div>
           )}
         </div>
         <div className="flex gap-2 flex-shrink-0">
@@ -208,14 +295,14 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
           <div className="bg-white rounded-xl p-6 w-full max-w-sm">
             <h3 className="font-bold text-red-600 mb-2">Borrar a {client.nombre}</h3>
             <p className="text-xs text-gray-500 mb-4">
-              Esto borra <strong>todo su historial de servicios y asignaciones para siempre</strong>. No se puede deshacer.
-              Para confirmar, escribí su nombre completo tal cual aparece: <strong>{client.nombre}</strong>
+              Esto borra <strong>todo su historial de servicios y asignaciones para siempre</strong>. No se puede deshacer.{' '}
+              {records.length > 0 && <> Tiene <strong>{records.length}</strong> servicio{records.length > 1 ? 's' : ''} registrado{records.length > 1 ? 's' : ''}. </>}Para confirmar, escribe la palabra <strong>borrar</strong>.
             </p>
             <input
               autoFocus
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              placeholder={client.nombre}
+              placeholder="borrar"
               className="w-full p-2 border rounded-lg text-sm mb-4"
             />
             <div className="flex gap-2">
@@ -230,7 +317,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
               </button>
               <button
                 onClick={handleDeleteClient}
-                disabled={confirmText.trim() !== client.nombre.trim() || deleting}
+                disabled={!confirmacionOk || deleting}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
               >
                 {deleting ? 'Borrando...' : 'Borrar definitivamente'}

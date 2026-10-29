@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import NewClientModal from './NewClientModal';
+import EditClientModal from './EditClientModal';
+import HoraInput from './HoraInput';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
 import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA, TEXTO_PENDIENTE } from '../lib/servicios';
 import { sinRegistro, necesitaRegistroManual } from '../lib/registros';
@@ -105,6 +107,14 @@ export default function AgendaDia({ currentStaff }) {
   const [cargandoMapeo, setCargandoMapeo] = useState(false);
   const [servicioDetectado, setServicioDetectado] = useState(''); // texto: de dónde salió el servicio auto-cargado
   const [avisoParalelo, setAvisoParalelo] = useState('');
+  const [clienteEditar, setClienteEditar] = useState(null); // clienta abierta en "Editar datos" desde la agenda
+
+  // Abre la edición de datos de la clienta elegida sin salir de la agenda.
+  const abrirEditarClienta = async () => {
+    if (!form.client) return;
+    const { data } = await supabase.from('clients').select('*').eq('id', form.client.id).single();
+    if (data) setClienteEditar(data);
+  };
   const [profesionalAutoSeleccionada, setProfesionalAutoSeleccionada] = useState(false);
 
   const seleccionarClienta = async (c) => {
@@ -602,8 +612,19 @@ export default function AgendaDia({ currentStaff }) {
               No se encontró ninguna clienta. Tocá "+ Nueva clienta" para darla de alta.
             </p>
           )}
-          {form.client && (form.client.telefono || form.client.ultima_visita) && (
-            <p className="text-xs text-gray-500 mt-1">{resumenClienta(form.client)}</p>
+          {form.client && (
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {(form.client.telefono || form.client.ultima_visita) && (
+                <p className="text-xs text-gray-500">{resumenClienta(form.client)}</p>
+              )}
+              <button
+                type="button"
+                onClick={abrirEditarClienta}
+                className="text-xs text-brand-600 font-semibold bg-brand-50 px-2.5 py-1 rounded-full hover:bg-brand-100"
+              >
+                ✏️ Editar / añadir datos de la clienta
+              </button>
+            </div>
           )}
           {cargandoMapeo && <p className="text-xs text-gray-400 mt-1">Buscando su último mapeo...</p>}
         </div>
@@ -632,12 +653,7 @@ export default function AgendaDia({ currentStaff }) {
           </div>
           <div>
             <label className="text-xs font-semibold block mb-1">HORA</label>
-            <input
-              type="time"
-              value={form.hora}
-              onChange={(e) => setForm({ ...form, hora: e.target.value })}
-              className="w-full p-2 border rounded-lg text-sm bg-white"
-            />
+            <HoraInput value={form.hora} onChange={(v) => setForm({ ...form, hora: v })} />
           </div>
         </div>
 
@@ -777,21 +793,11 @@ export default function AgendaDia({ currentStaff }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold block mb-1">DESDE</label>
-                <input
-                  placeholder="Ej: 14:00"
-                  value={descansoForm.hora}
-                  onChange={(e) => setDescansoForm({ ...descansoForm, hora: e.target.value })}
-                  className="w-full p-2 border rounded-lg text-sm bg-white"
-                />
+                <HoraInput value={descansoForm.hora} onChange={(v) => setDescansoForm({ ...descansoForm, hora: v })} />
               </div>
               <div>
                 <label className="text-xs font-semibold block mb-1">HASTA (opcional)</label>
-                <input
-                  placeholder="Ej: 15:00"
-                  value={descansoForm.hora_fin}
-                  onChange={(e) => setDescansoForm({ ...descansoForm, hora_fin: e.target.value })}
-                  className="w-full p-2 border rounded-lg text-sm bg-white"
-                />
+                <HoraInput value={descansoForm.hora_fin} onChange={(v) => setDescansoForm({ ...descansoForm, hora_fin: v })} />
               </div>
             </div>
             <div>
@@ -905,6 +911,18 @@ export default function AgendaDia({ currentStaff }) {
           )
         )}
       </div>
+
+      {clienteEditar && (
+        <EditClientModal
+          client={clienteEditar}
+          onClose={() => setClienteEditar(null)}
+          onUpdated={(actualizada) => {
+            // La ficha de la agenda se refresca con lo nuevo (teléfono, alergias, notas...)
+            setForm((f) => ({ ...f, client: { ...f.client, ...actualizada } }));
+            setAsignaciones((prev) => prev.map((a) => (a.client_id === actualizada.id ? { ...a, clients: { ...a.clients, nombre: actualizada.nombre } } : a)));
+          }}
+        />
+      )}
 
       {showNewClientModal && (
         <NewClientModal
