@@ -136,6 +136,7 @@ export default function AgendaDia({ currentStaff }) {
       .eq('client_id', c.id)
       .eq('es_extra', false)
       .order('fecha', { ascending: false })
+      .order('creado_en', { ascending: false })
       .limit(8);
 
     // Las visitas marcadas "Pendiente de cargar historial" no aportan información: se usa la

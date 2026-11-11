@@ -64,7 +64,8 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
       .from('service_records')
       .select('*, staff:staff_id(nombre)')
       .eq('client_id', client.id)
-      .order('fecha', { ascending: false });
+      .order('fecha', { ascending: false })
+      .order('creado_en', { ascending: false });
     if (data) setRecords(data);
 
     // Visitas de la agenda que ya pasaron (o la clienta ya llegó hoy) por si la profesional

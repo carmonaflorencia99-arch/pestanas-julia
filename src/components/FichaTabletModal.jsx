@@ -96,6 +96,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       .select('*')
       .eq('client_id', client.id)
       .order('fecha', { ascending: false })
+      .order('creado_en', { ascending: false })
       .limit(6);
     if (data) setRecords(data);
   }, [client.id]);
@@ -147,6 +148,34 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     }
   };
 
+  // ¿Hay ya un registro creado automáticamente para este servicio, de esta clienta, este día y esta profesional?
+  const esRegistroAutomatico = (texto) => {
+    const t = (texto || '').toLowerCase();
+    return (
+      t.includes('(sin confirmar)') ||
+      t.includes('(copiado de la visita anterior') ||
+      t === 'pendiente de cargar historial' ||
+      t === 'servicio realizado (sin observaciones)'
+    );
+  };
+  const buscarRegistroAutomatico = async (item) => {
+    const dia = asignacion?.fecha || fechaLocal();
+    const { data } = await supabase
+      .from('service_records')
+      .select('id, categoria_servicio, subtipo_servicio, historial_observaciones')
+      .eq('client_id', client.id)
+      .eq('staff_id', currentStaff.id)
+      .eq('es_extra', false)
+      .gte('fecha', `${dia}T00:00:00`)
+      .lte('fecha', `${dia}T23:59:59`);
+    const candidatos = (data || []).filter(
+      (r) =>
+        esRegistroAutomatico(r.historial_observaciones) &&
+        (r.categoria_servicio || '').trim().toLowerCase() === (item.categoria_servicio || '').trim().toLowerCase()
+    );
+    return candidatos.find((r) => r.subtipo_servicio === item.subtipo_servicio) || candidatos[0] || null;
+  };
+
   const guardarItem = async (index) => {
     const item = items[index];
 
@@ -181,8 +210,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       }
     }
 
-    const { data: guardado, error } = await supabase.from('service_records').insert([
-      {
+    const registro = {
         client_id: client.id,
         staff_id: currentStaff.id,
         categoria_servicio: item.categoria_servicio,
@@ -196,8 +224,23 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         ...(asignacion?.fecha && asignacion.fecha < fechaLocal()
           ? { fecha: `${asignacion.fecha}T12:00:00` }
           : {}),
-      },
-    ]).select('id');
+      };
+
+    // Si la visita ya se guardó sola (guardado automático por no confirmarse a tiempo), esta confirmación
+    // CORRIGE ese registro en vez de crear otro: así lo confirmado es siempre el último y único registro.
+    const automatico = await buscarRegistroAutomatico(item);
+    let guardado;
+    let error;
+    if (automatico) {
+      const { fecha: _f, ...cambios } = registro;
+      ({ data: guardado, error } = await supabase
+        .from('service_records')
+        .update(cambios)
+        .eq('id', automatico.id)
+        .select('id'));
+    } else {
+      ({ data: guardado, error } = await supabase.from('service_records').insert([registro]).select('id'));
+    }
     setSavingIndex(null);
     if (!error && guardado && guardado.length > 0) {
       marcarLlegada();
