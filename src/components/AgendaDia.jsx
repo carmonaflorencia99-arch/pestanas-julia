@@ -8,13 +8,10 @@ import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } 
 import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA, TEXTO_PENDIENTE } from '../lib/servicios';
 import { sinRegistro, necesitaRegistroManual } from '../lib/registros';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
+import { diaLocal } from '../lib/fechas';
 
-const hoyStr = () => new Date().toISOString().slice(0, 10);
-const mananaStr = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-};
+const hoyStr = () => diaLocal(0);
+const mananaStr = () => diaLocal(1);
 
 const etiquetaFecha = (fecha) => {
   if (fecha === hoyStr()) return 'hoy';
@@ -476,13 +473,29 @@ export default function AgendaDia({ currentStaff }) {
   };
 
   const handleEliminar = async (id) => {
-    await supabase.from('asignaciones_dia').delete().eq('id', id);
+    const a = asignaciones.find((x) => x.id === id);
+    // La visita es el dato principal de la app: antes de quitarla se avisa si la clienta ya vino o ya está atendida.
+    let aviso = '¿Quitar esta cita de la agenda?';
+    if (a && a.tipo !== 'descanso') {
+      if (a.llego || a.estado === 'completado') {
+        aviso = `${a.clients?.nombre || 'La clienta'} ya figura como que vino${a.estado === 'completado' ? ' y atendida' : ''}. Si la quitas se pierde el registro de esa visita (queda guardada una copia de seguridad para el administrador). ¿Seguro que quieres quitarla?`;
+      } else {
+        aviso = `¿Quitar la cita de ${a.clients?.nombre || 'la clienta'} de la agenda?`;
+      }
+    }
+    if (!window.confirm(aviso)) return;
+    const { error } = await supabase.from('asignaciones_dia').delete().eq('id', id);
+    if (error) {
+      alert(`No se pudo quitar la cita.${error.message ? ` (${error.message})` : ''}`);
+      return;
+    }
     if (editingId === id) resetFormularioCita();
     fetchAsignaciones();
   };
 
   const toggleCampo = async (id, campo, valorActual) => {
-    await supabase.from('asignaciones_dia').update({ [campo]: !valorActual }).eq('id', id);
+    const { error } = await supabase.from('asignaciones_dia').update({ [campo]: !valorActual }).eq('id', id);
+    if (error) alert(`No se pudo guardar el cambio. Revisa la conexión e inténtalo de nuevo.${error.message ? ` (${error.message})` : ''}`);
     fetchAsignaciones();
   };
 

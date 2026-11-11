@@ -6,13 +6,10 @@ import { paralelosDe, resumenServicios } from '../lib/paralelos';
 import { sinRegistro, registrosDe, registrosNecesarios, necesitaRegistroManual } from '../lib/registros';
 import GuiaProfesional, { claveGuia } from './GuiaProfesional';
 import { TEXTO_PENDIENTE } from '../lib/servicios';
+import { diaLocal } from '../lib/fechas';
 
-const hoy = () => new Date().toISOString().slice(0, 10);
-const haceDias = (n) => {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-};
+const hoy = () => diaLocal(0);
+const haceDias = (n) => diaLocal(-n);
 
 // Citas de días anteriores ya guardadas automáticamente (para no repetirlo en esta sesión).
 const autoGuardadas = new Set();
@@ -116,7 +113,7 @@ export default function ColaProfesional({ currentStaff }) {
       .from('asignaciones_dia')
       .select('*, clients(*)')
       .eq('staff_id', currentStaff.id)
-      .gte('fecha', haceDias(7))
+      .gte('fecha', haceDias(30))
       .lte('fecha', hoy());
     if (!citas || citas.length === 0) {
       setPendientesRegistro([]);
@@ -126,7 +123,7 @@ export default function ColaProfesional({ currentStaff }) {
       .from('service_records')
       .select('client_id, staff_id, fecha, es_extra')
       .eq('staff_id', currentStaff.id)
-      .gte('fecha', `${haceDias(7)}T00:00:00`);
+      .gte('fecha', `${haceDias(30)}T00:00:00`);
     const faltan = sinRegistro(citas, records || []);
 
     // Citas de días anteriores que YA traen información (historial escrito): se guardan solas
@@ -206,7 +203,7 @@ export default function ColaProfesional({ currentStaff }) {
   // Quitar una clienta de la lista de pendientes porque no vino: vuelve a "aún no llega".
   const quitarPendiente = async (a) => {
     const seguro = window.confirm(
-      `¿${a.clients?.nombre} no vino? Se quitará de la lista y no quedará nada registrado.`
+      `¿${a.clients?.nombre} no vino? Solo confírmalo si de verdad no vino: si la atendiste, usa \"Registrar ahora\" o \"No lo recuerdo\" para que quede su visita guardada.`
     );
     if (!seguro) return;
     await supabase.from('asignaciones_dia').update({ llego: false, estado: 'pendiente' }).eq('id', a.id);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { agruparCatalogo } from '../lib/catalogo';
 import DisenoPestanas from './DisenoPestanas';
+import { fechaLocal } from '../lib/fechas';
 
 // Solo las extensiones de pestañas exigen diseño u observaciones.
 const esExtensionPestanas = (categoria, subtipo) => {
@@ -139,6 +140,13 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, [campo]: valor } : it)));
   };
 
+  // Si se registra lo que se le hizo, la visita queda también marcada como "vino" (cuándo vino no se puede perder).
+  const marcarLlegada = () => {
+    if (asignacion?.id && !asignacion.llego) {
+      supabase.from('asignaciones_dia').update({ llego: true }).eq('id', asignacion.id).then(() => {});
+    }
+  };
+
   const guardarItem = async (index) => {
     const item = items[index];
 
@@ -173,7 +181,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       }
     }
 
-    const { error } = await supabase.from('service_records').insert([
+    const { data: guardado, error } = await supabase.from('service_records').insert([
       {
         client_id: client.id,
         staff_id: currentStaff.id,
@@ -185,20 +193,21 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         // para que se vea en la ficha de la clienta y se cargue sola en la próxima cita.
         historial_observaciones: (item.historial_observaciones || '').trim() || limpiarDiseno(item.diseno_pestanas) || '',
         // Si se está registrando una cita de un día anterior, queda con la fecha de esa cita.
-        ...(asignacion?.fecha && asignacion.fecha < new Date().toISOString().slice(0, 10)
+        ...(asignacion?.fecha && asignacion.fecha < fechaLocal()
           ? { fecha: `${asignacion.fecha}T12:00:00` }
           : {}),
       },
-    ]);
+    ]).select('id');
     setSavingIndex(null);
-    if (!error) {
+    if (!error && guardado && guardado.length > 0) {
+      marcarLlegada();
       setItems((prev) => prev.map((it, i) => (i === index ? { ...it, guardado: true } : it)));
       setGuardadoIndex(index);
       fetchRecords();
       setTimeout(() => setGuardadoIndex(null), 1500);
       return true;
     }
-    alert(`No se pudo guardar este servicio.${error.message ? ` (${error.message})` : ''}`);
+    alert(`No se pudo guardar este servicio. No pierdas lo escrito: revisa la conexión y vuelve a pulsar el botón.${error?.message ? ` (${error.message})` : ''}`);
     return false;
   };
 
@@ -231,7 +240,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       }
     }
 
-    const { error } = await supabase.from('service_records').insert([
+    const { data: guardadoExtra, error } = await supabase.from('service_records').insert([
       {
         client_id: client.id,
         staff_id: currentStaff.id,
@@ -242,9 +251,9 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         historial_observaciones: (extraForm.historial_observaciones || '').trim() || limpiarDiseno(extraForm.diseno_pestanas) || '',
         es_extra: true,
       },
-    ]);
+    ]).select('id');
     setSavingExtra(false);
-    if (!error) {
+    if (!error && guardadoExtra && guardadoExtra.length > 0) {
       setExtraGuardado(true);
       setExtraForm((f) => ({ ...f, diseno_pestanas: '', historial_observaciones: '' }));
       fetchRecords();

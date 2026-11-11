@@ -10,6 +10,7 @@ import ColaProfesional from './components/ColaProfesional';
 import SaludoDia from './components/SaludoDia';
 import Inventario from './components/inventario/Inventario';
 import { exportRecordsToCsv } from './utils/exportCsv';
+import { exportVisitasCsv } from './utils/exportVisitas';
 import { estaBaja } from './utils/inventario';
 
 export default function App() {
@@ -159,12 +160,20 @@ export default function App() {
 
         <div className="flex items-center gap-1">
           {currentStaff.rol === 'admin' && (
-            <button
-              onClick={exportRecordsToCsv}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100"
-            >
-              Exportar CSV
-            </button>
+            <>
+              <button
+                onClick={exportRecordsToCsv}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100"
+              >
+                Exportar CSV
+              </button>
+              <button
+                onClick={exportVisitasCsv}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100"
+              >
+                Copia de visitas
+              </button>
+            </>
           )}
           <button
             onClick={handleLogout}

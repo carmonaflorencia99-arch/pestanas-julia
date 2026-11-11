@@ -364,7 +364,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
           <div className="bg-white rounded-xl p-6 w-full max-w-sm">
             <h3 className="font-bold text-red-600 mb-2">Borrar a {client.nombre}</h3>
             <p className="text-xs text-gray-500 mb-4">
-              Esto borra <strong>todo su historial de servicios y asignaciones para siempre</strong>. No se puede deshacer.{' '}
+              Esto borra <strong>todo su historial de servicios y sus citas</strong>. No se puede deshacer desde la app (queda una copia de seguridad para el administrador).{' '}
               {records.length > 0 && <> Tiene <strong>{records.length}</strong> servicio{records.length > 1 ? 's' : ''} registrado{records.length > 1 ? 's' : ''}. </>}¿Seguro que quieres borrarla?
             </p>
             <div className="flex gap-2">
