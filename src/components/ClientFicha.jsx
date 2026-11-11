@@ -93,19 +93,26 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
   const handleSave = async (e) => {
     e.preventDefault();
     if (editingId) {
-      const { error } = await supabase
+      const original = records.find((r) => r.id === editingId);
+      const { data: filas, error } = await supabase
         .from('service_records')
         .update({
           categoria_servicio: form.categoria_servicio,
           subtipo_servicio: form.subtipo_servicio,
           historial_observaciones: form.historial_observaciones,
+          ...(original?.diseno_pestanas ? { diseno_pestanas: form.historial_observaciones || null } : {}),
         })
-        .eq('id', editingId);
+        .eq('id', editingId)
+        .select('id');
+      if (!error && (!filas || filas.length === 0)) {
+        alert('No se pudo guardar: tu usuario no tiene permiso para modificar este registro.');
+        return;
+      }
       if (!error) {
         setEditingId(null);
         fetchRecords();
       } else {
-        alert('No se pudo actualizar la ficha.');
+        alert(`No se pudo actualizar la ficha.${error.message ? ` (${error.message})` : ''}`);
       }
       return;
     }
@@ -124,7 +131,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
       setForm((f) => ({ ...f, historial_observaciones: '' }));
       fetchRecords();
     } else {
-      alert('No se pudo guardar la ficha.');
+      alert(`No se pudo guardar la ficha.${error.message ? ` (${error.message})` : ''}`);
     }
   };
 
@@ -133,7 +140,7 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
     setForm({
       categoria_servicio: rec.categoria_servicio,
       subtipo_servicio: rec.subtipo_servicio,
-      historial_observaciones: rec.historial_observaciones || '',
+      historial_observaciones: rec.historial_observaciones || rec.diseno_pestanas || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -423,14 +430,14 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
             <p className="font-bold text-ink">
               {rec.categoria_servicio}: <span className="font-normal">{rec.subtipo_servicio}</span>
             </p>
-            {rec.historial_observaciones === 'Pendiente de cargar historial' ? (
+            {(rec.historial_observaciones || rec.diseno_pestanas) === 'Pendiente de cargar historial' ? (
               <p className="mt-2 text-xs bg-red-50 p-2 rounded border border-red-200 text-red-600 font-semibold">
                 Pendiente de cargar historial — usa "Editar" para completarlo
               </p>
             ) : (
-              rec.historial_observaciones && (
+              (rec.historial_observaciones || rec.diseno_pestanas) && (
                 <p className="mt-2 text-xs bg-white p-2 rounded border border-gray-200 text-gray-700">
-                  <strong>Observaciones:</strong> {rec.historial_observaciones}
+                  <strong>Observaciones:</strong> {rec.historial_observaciones || rec.diseno_pestanas}
                 </p>
               )
             )}

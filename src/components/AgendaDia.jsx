@@ -135,7 +135,7 @@ export default function AgendaDia({ currentStaff }) {
 
     const { data: ultimos } = await supabase
       .from('service_records')
-      .select('categoria_servicio, subtipo_servicio, historial_observaciones')
+      .select('categoria_servicio, subtipo_servicio, historial_observaciones, diseno_pestanas')
       .eq('client_id', c.id)
       .eq('es_extra', false)
       .order('fecha', { ascending: false })
@@ -143,7 +143,8 @@ export default function AgendaDia({ currentStaff }) {
 
     // Las visitas marcadas "Pendiente de cargar historial" no aportan información: se usa la
     // última visita con historial real (el servicio sí se toma de la visita más reciente).
-    const lista = ultimos || [];
+    // Historial de cada visita: sus observaciones o, si solo tiene diseño de pestañas, el diseño.
+    const lista = (ultimos || []).map((r) => ({ ...r, historial_observaciones: (r.historial_observaciones || '').trim() || r.diseno_pestanas || '' }));
     const conInfo = lista.find((r) => (r.historial_observaciones || '').trim() && r.historial_observaciones.trim() !== TEXTO_PENDIENTE);
     const data = conInfo || lista[0] || null;
     const textoReal = conInfo ? conInfo.historial_observaciones : '';

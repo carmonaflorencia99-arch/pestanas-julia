@@ -181,7 +181,9 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         subtipo_servicio: item.subtipo_servicio,
         diseno_pestanas: limpiarDiseno(item.diseno_pestanas),
         diseno_cambio_pendiente: disenoCambioPendiente,
-        historial_observaciones: item.historial_observaciones,
+        // El diseño y las observaciones de pestañas van en un solo texto: se guarda también como historial
+        // para que se vea en la ficha de la clienta y se cargue sola en la próxima cita.
+        historial_observaciones: (item.historial_observaciones || '').trim() || limpiarDiseno(item.diseno_pestanas) || '',
         // Si se está registrando una cita de un día anterior, queda con la fecha de esa cita.
         ...(asignacion?.fecha && asignacion.fecha < new Date().toISOString().slice(0, 10)
           ? { fecha: `${asignacion.fecha}T12:00:00` }
@@ -196,7 +198,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
       setTimeout(() => setGuardadoIndex(null), 1500);
       return true;
     }
-    alert('No se pudo guardar este servicio.');
+    alert(`No se pudo guardar este servicio.${error.message ? ` (${error.message})` : ''}`);
     return false;
   };
 
@@ -237,7 +239,7 @@ export default function FichaTabletModal({ client, asignacion, currentStaff, onC
         subtipo_servicio: extraForm.subtipo_servicio,
         diseno_pestanas: limpiarDiseno(extraForm.diseno_pestanas),
         diseno_cambio_pendiente: disenoCambioPendiente,
-        historial_observaciones: extraForm.historial_observaciones,
+        historial_observaciones: (extraForm.historial_observaciones || '').trim() || limpiarDiseno(extraForm.diseno_pestanas) || '',
         es_extra: true,
       },
     ]);
