@@ -78,8 +78,17 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
       .eq('client_id', client.id)
       .lte('fecha', hoyLocal)
       .order('fecha', { ascending: false });
+    // Cuenta como visita cuando ya pasó la hora de la cita, esté o no marcado "llegó"
+    // (a veces no da tiempo a marcarlo): lo importante es que la visita quede en el historial.
+    const minAhora = d.getHours() * 60 + d.getMinutes();
+    const minutosDe = (h) => (/^\d{1,2}:\d{2}/.test(h || '') ? parseInt(h.slice(0, 2), 10) * 60 + parseInt(h.slice(3, 5), 10) : null);
     setCitasAgenda(
-      (citas || []).filter((c) => c.tipo !== 'descanso' && (c.fecha < hoyLocal || c.llego))
+      (citas || []).filter((c) => {
+        if (c.tipo === 'descanso') return false;
+        if (c.fecha < hoyLocal) return true;
+        const m = minutosDe(c.hora);
+        return c.llego || m === null || m <= minAhora;
+      })
     );
     setLoading(false);
   }, [client.id]);

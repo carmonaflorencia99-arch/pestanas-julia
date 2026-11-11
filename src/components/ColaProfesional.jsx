@@ -203,13 +203,18 @@ export default function ColaProfesional({ currentStaff }) {
   // Quitar una clienta de la lista de pendientes porque no vino: vuelve a "aún no llega".
   const quitarPendiente = async (a) => {
     const seguro = window.confirm(
-      `¿${a.clients?.nombre} no vino? Solo confírmalo si de verdad no vino: si la atendiste, usa \"Registrar ahora\" o \"No lo recuerdo\" para que quede su visita guardada.`
+      `¿${a.clients?.nombre} no vino? Solo confírmalo si de verdad no vino: si la atendiste, usa "Registrar ahora" o "No lo recuerdo" para que su visita quede guardada. Si no vino, se quita de la agenda (recepción conserva una copia).`
     );
     if (!seguro) return;
-    await supabase.from('asignaciones_dia').update({ llego: false, estado: 'pendiente' }).eq('id', a.id);
+    const { error } = await supabase.from('asignaciones_dia').delete().eq('id', a.id);
+    if (error) {
+      alert('No se pudo quitar. Pídele a recepción que quite la cita.');
+      return;
+    }
     fetchPendientesRegistro();
     fetchAsignaciones();
   };
+
 
   const citas = asignaciones.filter((a) => a.tipo !== 'descanso');
   const descansos = asignaciones.filter((a) => a.tipo === 'descanso');

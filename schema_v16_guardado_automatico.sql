@@ -1,9 +1,10 @@
 -- v16: GUARDADO AUTOMÁTICO de las visitas.
--- Aunque la profesional no confirme (hay mucha faena y se puede olvidar), cada visita en la que la
--- clienta llegó queda SIEMPRE registrada en su historial: cuándo vino, qué servicio y con quién.
+-- Aunque la profesional no confirme ni nadie marque "llegó" (hay mucha faena y se puede olvidar), cada cita
+-- de la agenda de un día que ya pasó queda SIEMPRE registrada en su historial: cuándo vino, qué servicio y
+-- con quién. Si una clienta NO vino, se quita la cita de la agenda ("Quitar" / "No vino"); queda copia en v15.
 -- Ejecutar UNA VEZ en Supabase > SQL Editor.
 --
--- Regla: cuando pasa el día, a cada cita (la clienta llegó / se marcó atendida) que no tenga su ficha,
+-- Regla: cuando pasa el día, a cada cita que no tenga su ficha,
 -- se le crea sola, con la profesional de la cita y la fecha de la cita:
 --   1) con el historial que cargó recepción para esa cita, o
 --   2) si no hay, con el último historial de la clienta de ese mismo tipo de servicio (se anota
@@ -34,7 +35,6 @@ begin
       and staff_id is not null
       and fecha < hoy
       and fecha >= hoy - 90
-      and (llego is true or estado in ('completado', 'en_proceso'))
     order by fecha
   loop
     necesarios := greatest(1, case when jsonb_typeof(a.servicios) = 'array' then jsonb_array_length(a.servicios) else 1 end);

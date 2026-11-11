@@ -481,7 +481,7 @@ export default function AgendaDia({ currentStaff }) {
       if (a.llego || a.estado === 'completado') {
         aviso = `${a.clients?.nombre || 'La clienta'} ya figura como que vino${a.estado === 'completado' ? ' y atendida' : ''}. Si la quitas se pierde el registro de esa visita (queda guardada una copia de seguridad para el administrador). ¿Seguro que quieres quitarla?`;
       } else {
-        aviso = `¿Quitar la cita de ${a.clients?.nombre || 'la clienta'} de la agenda?`;
+        aviso = `¿Quitar la cita de ${a.clients?.nombre || 'la clienta'} de la agenda? Hazlo solo si no vino o se canceló: las citas que se quedan en la agenda quedan guardadas como visita en su historial.`;
       }
     }
     if (!window.confirm(aviso)) return;

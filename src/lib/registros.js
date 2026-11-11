@@ -1,3 +1,4 @@
+import { fechaLocal } from './fechas';
 import { esExtensionPestanas, TEXTO_PUESTA_NUEVA, TEXTO_PENDIENTE } from './servicios';
 
 // Control de que lo que se le hizo a cada clienta quede SIEMPRE registrado.
@@ -16,14 +17,15 @@ export function registrosDe(a, records) {
   ).length;
 }
 
-// Citas ya atendidas (la clienta llegó o se marcó como atendida) a las que
+// Citas ya atendidas (la clienta llegó, se marcó atendida o el día ya pasó) a las que
 // les falta registrar lo realizado.
 export function sinRegistro(asignaciones, records) {
   return (asignaciones || []).filter(
     (a) =>
       a.tipo !== 'descanso' &&
       a.client_id &&
-      (a.llego || a.estado === 'completado' || a.estado === 'en_proceso') &&
+      // un día que ya pasó cuenta como visita aunque nadie marcara "llegó"
+      (a.llego || a.estado === 'completado' || a.estado === 'en_proceso' || (a.fecha && a.fecha < fechaLocal())) &&
       registrosDe(a, records) < registrosNecesarios(a)
   );
 }
