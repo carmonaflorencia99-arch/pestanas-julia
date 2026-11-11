@@ -56,6 +56,8 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
     }
   }, []);
 
+  const [citasAgenda, setCitasAgenda] = useState([]);
+
   const fetchRecords = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
@@ -64,6 +66,20 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
       .eq('client_id', client.id)
       .order('fecha', { ascending: false });
     if (data) setRecords(data);
+
+    // Visitas de la agenda que ya pasaron (o la clienta ya llegó hoy) por si la profesional
+    // no llegó a confirmar el servicio: se muestran igual, marcadas "sin confirmar".
+    const d = new Date();
+    const hoyLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const { data: citas } = await supabase
+      .from('asignaciones_dia')
+      .select('id, fecha, hora, tipo, servicios, llego, staff:staff_id(nombre)')
+      .eq('client_id', client.id)
+      .lte('fecha', hoyLocal)
+      .order('fecha', { ascending: false });
+    setCitasAgenda(
+      (citas || []).filter((c) => c.tipo !== 'descanso' && (c.fecha < hoyLocal || c.llego))
+    );
     setLoading(false);
   }, [client.id]);
 
@@ -151,6 +167,27 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
     if (!error) fetchRecords();
   };
 
+  // Servicios de la agenda que todavía no tienen ficha confirmada ese día
+  const fechaLocal = (f) => {
+    const d = new Date(f);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const sinConfirmar = citasAgenda.flatMap((c) => {
+    const hechos = records.filter((r) => fechaLocal(r.fecha) === c.fecha).length;
+    const lista = (c.servicios || []).length > 0 ? c.servicios : [{ categoria_servicio: 'Servicio', subtipo_servicio: 'Sin especificar' }];
+    return lista.slice(hechos).map((sv, i) => ({
+      key: `${c.id}-${i}`,
+      fecha: c.fecha,
+      hora: c.hora,
+      profesional: c.staff?.nombre,
+      servicio: sv,
+    }));
+  });
+  const lineaTiempo = [
+    ...records.map((r) => ({ tipo: 'rec', orden: fechaLocal(r.fecha), rec: r })),
+    ...sinConfirmar.map((x) => ({ tipo: 'sin', orden: x.fecha, x })),
+  ].sort((a, b) => (a.orden < b.orden ? 1 : a.orden > b.orden ? -1 : 0));
+
   const puedeEditarRegistro = (rec) =>
     currentStaff.rol === 'admin' || currentStaff.rol === 'secretaria' || rec.staff_id === currentStaff.id;
 
@@ -194,6 +231,45 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
       alert('No se pudo borrar la clienta.');
     }
   };
+
+  const renderRegistro = (rec) => (
+<div key={rec.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
+            <div className="flex justify-between font-semibold text-xs text-gray-500 mb-1">
+              <span>{new Date(rec.fecha).toLocaleDateString('es-ES')}</span>
+              <span className="text-brand-600">Atendió: {rec.staff?.nombre || '—'}</span>
+            </div>
+            <p className="font-bold text-ink">
+              {rec.categoria_servicio}: <span className="font-normal">{rec.subtipo_servicio}</span>
+            </p>
+            {(rec.historial_observaciones || rec.diseno_pestanas) === 'Pendiente de cargar historial' ? (
+              <p className="mt-2 text-xs bg-red-50 p-2 rounded border border-red-200 text-red-600 font-semibold">
+                Pendiente de cargar historial — usa "Editar" para completarlo
+              </p>
+            ) : (
+              (rec.historial_observaciones || rec.diseno_pestanas) && (
+                <p className="mt-2 text-xs bg-white p-2 rounded border border-gray-200 text-gray-700">
+                  <strong>Observaciones:</strong> {rec.historial_observaciones || rec.diseno_pestanas}
+                </p>
+              )
+            )}
+            {puedeEditarRegistro(rec) && (
+              <div className="flex gap-3 mt-2">
+                <button
+                  onClick={() => handleEdit(rec)}
+                  className="text-xs text-brand-600 font-medium hover:underline"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(rec.id)}
+                  className="text-xs text-red-500 font-medium hover:underline"
+                >
+                  Eliminar
+                </button>
+              </div>
+            )}
+          </div>
+  );
 
   return (
     <div>
@@ -418,47 +494,30 @@ export default function ClientFicha({ client, currentStaff, onClientUpdated, onC
       <h3 className="font-semibold text-sm text-gray-700 mb-3">Historial de servicios anteriores</h3>
       <div className="space-y-3">
         {loading && <p className="text-xs text-gray-400">Cargando...</p>}
-        {!loading && records.length === 0 && (
+        {!loading && lineaTiempo.length === 0 && (
           <p className="text-xs text-gray-400">No hay registros previos para esta clienta.</p>
         )}
-        {records.map((rec) => (
-          <div key={rec.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
-            <div className="flex justify-between font-semibold text-xs text-gray-500 mb-1">
-              <span>{new Date(rec.fecha).toLocaleDateString('es-ES')}</span>
-              <span className="text-brand-600">Atendió: {rec.staff?.nombre || '—'}</span>
-            </div>
-            <p className="font-bold text-ink">
-              {rec.categoria_servicio}: <span className="font-normal">{rec.subtipo_servicio}</span>
-            </p>
-            {(rec.historial_observaciones || rec.diseno_pestanas) === 'Pendiente de cargar historial' ? (
-              <p className="mt-2 text-xs bg-red-50 p-2 rounded border border-red-200 text-red-600 font-semibold">
-                Pendiente de cargar historial — usa "Editar" para completarlo
-              </p>
-            ) : (
-              (rec.historial_observaciones || rec.diseno_pestanas) && (
-                <p className="mt-2 text-xs bg-white p-2 rounded border border-gray-200 text-gray-700">
-                  <strong>Observaciones:</strong> {rec.historial_observaciones || rec.diseno_pestanas}
-                </p>
-              )
-            )}
-            {puedeEditarRegistro(rec) && (
-              <div className="flex gap-3 mt-2">
-                <button
-                  onClick={() => handleEdit(rec)}
-                  className="text-xs text-brand-600 font-medium hover:underline"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleDelete(rec.id)}
-                  className="text-xs text-red-500 font-medium hover:underline"
-                >
-                  Eliminar
-                </button>
+        {lineaTiempo.map((it) =>
+          it.tipo === 'sin' ? (
+            <div key={it.x.key} className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-sm">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>{new Date(`${it.x.fecha}T12:00:00`).toLocaleDateString('es-ES')}{it.x.hora ? ` · ${it.x.hora}` : ''}</span>
+                <span className="text-brand-600">Atendió: {it.x.profesional || '—'}</span>
               </div>
-            )}
-          </div>
-        ))}
+              <p className="font-bold text-ink">
+                {it.x.servicio.categoria_servicio}: <span className="font-normal">{it.x.servicio.subtipo_servicio}</span>
+              </p>
+              {(it.x.servicio.historial_observaciones || '').trim() && (
+                <p className="mt-2 text-xs bg-white p-2 rounded border border-gray-200 text-gray-700">
+                  <strong>Cargado por recepción:</strong> {it.x.servicio.historial_observaciones}
+                </p>
+              )}
+              <p className="mt-2 text-xs font-semibold text-amber-700">Sin confirmar por la profesional</p>
+            </div>
+          ) : (
+            renderRegistro(it.rec)
+          )
+        )}
       </div>
     </div>
   );
