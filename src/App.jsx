@@ -56,6 +56,16 @@ export default function App() {
     restoreSession();
   }, []);
 
+  // Guardado automático: cada visita de un día ya pasado en la que la clienta llegó queda registrada
+  // en su historial aunque nadie la haya confirmado (ver schema_v16). Se ejecuta al entrar y cada 30 min.
+  useEffect(() => {
+    if (!currentStaff) return undefined;
+    const cerrar = () => supabase.rpc('cerrar_visitas_pasadas').then(() => {}, () => {});
+    cerrar();
+    const t = setInterval(cerrar, 30 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [currentStaff]);
+
   const handleLoggedIn = (staff) => {
     setCurrentStaff(staff);
     sessionStorage.setItem('currentStaff', JSON.stringify(staff));
