@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import FichaTabletModal from './FichaTabletModal';
 import CajasProfesional from './inventario/CajasProfesional';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
-import { sinRegistro, registrosDe, registrosNecesarios, necesitaRegistroManual } from '../lib/registros';
+import { sinRegistro, registrosDe, registrosNecesarios } from '../lib/registros';
 import GuiaProfesional, { claveGuia } from './GuiaProfesional';
 import { TEXTO_PENDIENTE } from '../lib/servicios';
 import { diaLocal } from '../lib/fechas';
@@ -19,41 +19,7 @@ export default function ColaProfesional({ currentStaff }) {
   const [registrosHoy, setRegistrosHoy] = useState([]);
   const [activa, setActiva] = useState(null); // asignación abierta en la ficha
   const [faltaId, setFaltaId] = useState(null); // asignación que se abrió desde el aviso de "falta registrar"
-  const [pendientesRegistro, setPendientesRegistro] = useState([]); // atendidas sin registro (hoy y días anteriores)
   const [mostrarGuia, setMostrarGuia] = useState(false);
-  // Se puede ocultar el aviso de pendientes para hacerlos más tarde (reaparece solo a las 2 horas).
-  const claveOculto = `pendientes_ocultos_${currentStaff.id}`;
-  const leerOculto = () => {
-    try {
-      return Number(localStorage.getItem(claveOculto) || 0) > Date.now();
-    } catch (e) {
-      return false;
-    }
-  };
-  const [ocultos, setOcultos] = useState(leerOculto);
-  const ocultarPendientes = () => {
-    try {
-      localStorage.setItem(claveOculto, String(Date.now() + 2 * 60 * 60 * 1000));
-    } catch (e) {
-      /* sin almacenamiento: se oculta solo en esta sesión */
-    }
-    setOcultos(true);
-  };
-  const mostrarPendientes = () => {
-    try {
-      localStorage.removeItem(claveOculto);
-    } catch (e) {
-      /* nada */
-    }
-    setOcultos(false);
-  };
-  useEffect(() => {
-    // al pasar las 2 horas vuelve a aparecer solo
-    const t = setInterval(() => {
-      if (ocultos && !leerOculto()) setOcultos(false);
-    }, 60000);
-    return () => clearInterval(t);
-  }, [ocultos]); // eslint-disable-line react-hooks/exhaustive-deps
   const [otras, setOtras] = useState([]); // asignaciones de hoy de las mismas clientas con otras profesionales
 
   const fetchAsignaciones = useCallback(async () => {
@@ -107,7 +73,7 @@ export default function ColaProfesional({ currentStaff }) {
     setMostrarGuia(false);
   };
 
-  // Citas atendidas (últimos 7 días) a las que aún les falta registrar lo realizado.
+  // Citas de días anteriores sin registro: se guardan solas como visita (sin avisos ni listas).
   const fetchPendientesRegistro = useCallback(async () => {
     const { data: citas } = await supabase
       .from('asignaciones_dia')
@@ -116,7 +82,6 @@ export default function ColaProfesional({ currentStaff }) {
       .gte('fecha', haceDias(30))
       .lte('fecha', hoy());
     if (!citas || citas.length === 0) {
-      setPendientesRegistro([]);
       return;
     }
     const { data: records } = await supabase
@@ -128,7 +93,7 @@ export default function ColaProfesional({ currentStaff }) {
 
     // Citas de días anteriores que YA traen información (historial escrito): se guardan solas
     // en su historial, sin pedirle nada a la profesional. Así nada queda vacío.
-    const auto = faltan.filter((a) => a.fecha < hoy() && !necesitaRegistroManual(a) && !autoGuardadas.has(a.id));
+    const auto = faltan.filter((a) => a.fecha < hoy() && !autoGuardadas.has(a.id));
     for (const a of auto) {
       autoGuardadas.add(a.id);
       const yaHay = registrosDe(a, records || []);
@@ -147,8 +112,6 @@ export default function ColaProfesional({ currentStaff }) {
       }
     }
 
-    // Se le avisa solo de las que no tienen información (vacías o todavía "Puesta nueva").
-    setPendientesRegistro(faltan.filter((a) => necesitaRegistroManual(a)));
   }, [currentStaff.id]);
 
   useEffect(() => {
@@ -237,68 +200,6 @@ export default function ColaProfesional({ currentStaff }) {
           ? Cómo funciona
         </button>
       </div>
-
-      {pendientesRegistro.length > 0 && ocultos && (
-        <button
-          onClick={mostrarPendientes}
-          className="mb-6 w-full text-left text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 active:bg-red-100"
-        >
-          {pendientesRegistro.length} registro{pendientesRegistro.length > 1 ? 's' : ''} pendiente
-          {pendientesRegistro.length > 1 ? 's' : ''} (ocultos) · Toca para verlos
-        </button>
-      )}
-
-      {pendientesRegistro.length > 0 && !ocultos && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-3xl p-5">
-          <div className="flex justify-between items-start gap-3 mb-3">
-            <p className="font-bold text-red-700">
-              Falta registrar lo que se le hizo a{' '}
-              {pendientesRegistro.length === 1 ? 'una clienta' : `${pendientesRegistro.length} clientas`}
-            </p>
-            <button
-              onClick={ocultarPendientes}
-              className="text-xs font-semibold text-red-500 bg-white border border-red-200 px-3 py-1.5 rounded-full whitespace-nowrap active:bg-red-50"
-            >
-              Ocultar y hacerlo más tarde
-            </button>
-          </div>
-          <div className="space-y-2">
-            {pendientesRegistro.map((a) => (
-              <div key={a.id} className="flex justify-between items-center bg-white rounded-2xl px-4 py-3">
-                <div>
-                  <p className="font-semibold text-ink">{a.clients?.nombre}</p>
-                  <p className="text-xs text-gray-400">
-                    {a.fecha === hoy() ? 'Hoy' : new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-ES')}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    onClick={() => quitarPendiente(a)}
-                    className="text-xs font-semibold text-gray-400 px-3 py-2 rounded-full active:bg-gray-100"
-                  >
-                    No vino
-                  </button>
-                  <button
-                    onClick={() => dejarPendiente(a)}
-                    className="text-xs font-semibold text-red-500 bg-red-50 px-3 py-2 rounded-full active:bg-red-100"
-                  >
-                    No lo recuerdo
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFaltaId(a.id);
-                      setActiva(a);
-                    }}
-                    className="bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-full active:bg-red-600"
-                  >
-                    Registrar ahora
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <CajasProfesional currentStaff={currentStaff} />
 
