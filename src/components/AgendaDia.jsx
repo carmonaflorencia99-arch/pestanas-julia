@@ -6,7 +6,6 @@ import EditClientModal from './EditClientModal';
 import HoraInput from './HoraInput';
 import { buscarClientas, enriquecerClientas, resumenClienta, nombresRepetidos } from '../lib/clientInfo';
 import { inferirTipoExtension, buscarServicioExtension, proximoServicioDesde, servicioDesdeFlowww, esExtensionPestanas, servicioPuestaNueva, TEXTO_PUESTA_NUEVA, TEXTO_PENDIENTE } from '../lib/servicios';
-import { sinRegistro, necesitaRegistroManual } from '../lib/registros';
 import { paralelosDe, resumenServicios } from '../lib/paralelos';
 import { diaLocal } from '../lib/fechas';
 
@@ -302,12 +301,6 @@ export default function AgendaDia({ currentStaff }) {
     const t = setInterval(fetchRegistrosDia, 60000);
     return () => clearInterval(t);
   }, [fetchRegistrosDia, asignaciones]);
-  const faltantesIds = new Set(
-    sinRegistro(asignaciones, registrosDia)
-      .filter((a) => necesitaRegistroManual(a))
-      .map((a) => a.id)
-  );
-
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!clientSearch) {
@@ -562,30 +555,6 @@ export default function AgendaDia({ currentStaff }) {
                 >
                   Ya lo cargué ✓
                 </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {pendientesHistorial.length > 0 && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
-          <h3 className="text-sm font-bold text-red-700 mb-1">
-            Pendiente de cargar historial ({pendientesHistorial.length})
-          </h3>
-          <p className="text-xs text-red-500 mb-3">
-            La profesional no recordó qué se le hizo. Complétalo desde Fichas → la clienta → Editar en ese registro.
-          </p>
-          <div className="space-y-1.5">
-            {pendientesHistorial.map((r) => (
-              <div key={r.id} className="bg-white rounded-xl px-3 py-2 text-sm flex justify-between gap-2">
-                <span>
-                  <span className="font-semibold">{r.clients?.nombre}</span>{' '}
-                  <span className="text-gray-400">— {r.subtipo_servicio}</span>
-                </span>
-                <span className="text-xs text-gray-400 whitespace-nowrap">
-                  {new Date(r.fecha).toLocaleDateString('es-ES')} · {r.staff?.nombre}
-                </span>
               </div>
             ))}
           </div>
@@ -929,17 +898,6 @@ export default function AgendaDia({ currentStaff }) {
                   </button>
                 </div>
               </div>
-              {faltantesIds.has(a.id) && (
-                <p
-                  className={`mt-2 text-xs font-semibold px-2 py-1.5 rounded-lg ${
-                    a.fecha < hoyStr() ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {a.fecha < hoyStr()
-                    ? `${a.staff?.nombre} no registró lo que se le hizo a esta clienta`
-                    : `${a.staff?.nombre} aún no registró lo realizado`}
-                </p>
-              )}
               {paralelosDe(a, asignaciones).map((b) => (
                 <p key={b.id} className="mt-2 text-xs bg-blush-50 text-blush-700 font-semibold px-2 py-1.5 rounded-lg">
                   En paralelo con {b.staff?.nombre}: {resumenServicios(b)}
