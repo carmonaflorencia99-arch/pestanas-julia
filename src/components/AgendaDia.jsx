@@ -664,7 +664,7 @@ export default function AgendaDia({ currentStaff }) {
           </div>
           <div>
             <label className="text-xs font-semibold block mb-1">HORA</label>
-            <HoraInput min="10:30" max="19:30" value={form.hora} onChange={(v) => setForm({ ...form, hora: v })} />
+            <HoraInput min={new Date(fechaAgenda + 'T12:00:00').getDay() === 6 ? '10:00' : '10:30'} max="19:30" value={form.hora} onChange={(v) => setForm({ ...form, hora: v })} />
           </div>
         </div>
 
